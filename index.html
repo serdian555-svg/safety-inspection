@@ -148,7 +148,7 @@ canvas{display:block;width:100%;height:170px;}
 <body>
 
 <!-- 구글 로그인 바 -->
-<div class="login-bar">
+<div class="login-bar"><span id="sync-status" style="font-size:11px;color:#065f46;margin-right:8px;"></span>
   <div class="login-status" id="login-status">구글 드라이브 미연결</div>
   <button class="login-btn" id="login-btn" onclick="handleLogin()">구글 로그인</button>
   <span class="drive-status drive-no" id="drive-status">드라이브 ✗</span>
@@ -1040,9 +1040,73 @@ function compExp(exp){document.querySelectorAll('[id^="cm-"]').forEach(function(
 
 document.querySelectorAll('.ov').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});
 
+
+// ===== Firebase Firestore 연동 =====
+var db=null;
+
+function initFirebase(){
+  try{
+    var firebaseConfig={
+      apiKey:"AIzaSyBB61wYKJcm1XXdB_Bz6H5I561pDd5AFbY",
+      authDomain:"safety-inspection-2b171.firebaseapp.com",
+      projectId:"safety-inspection-2b171",
+      storageBucket:"safety-inspection-2b171.firebasestorage.app",
+      messagingSenderId:"309683669547",
+      appId:"1:309683669547:web:83741e8b18add2de45b86e"
+    };
+    firebase.initializeApp(firebaseConfig);
+    db=firebase.firestore();
+    loadFromFirestore();
+    document.getElementById("sync-status").textContent="☁️ 동기화 중...";
+  }catch(e){
+    console.log("Firebase 오류:",e);
+    loadData();
+    renderCal();renderAB();renderST();showALP();
+  }
+}
+
+function loadFromFirestore(){
+  db.collection("appdata").doc("main").onSnapshot(function(doc){
+    if(doc.exists){
+      var data=doc.data();
+      if(data.sites)sites=data.sites;
+      if(data.sch)sch=data.sch;
+    }
+    renderCal();renderAB();renderST();showALP();
+    document.getElementById("sync-status").textContent="☁️ 동기화됨";
+  },function(err){
+    console.log("Firestore 오류:",err);
+    loadData();
+    renderCal();renderAB();renderST();showALP();
+    document.getElementById("sync-status").textContent="⚠️ 오프라인";
+  });
+}
+
+function saveData(){
+  try{
+    localStorage.setItem("sites",JSON.stringify(sites));
+    localStorage.setItem("sch",JSON.stringify(sch));
+  }catch(e){}
+  if(db){
+    db.collection("appdata").doc("main").set({
+      sites:sites,
+      sch:sch,
+      updatedAt:new Date().toISOString()
+    }).then(function(){
+      document.getElementById("sync-status").textContent="☁️ 동기화됨";
+    }).catch(function(){
+      document.getElementById("sync-status").textContent="⚠️ 저장 실패";
+    });
+  }
+}
+
 // 초기화
-loadData();
-renderCal();renderAB();renderST();showALP();
+initFirebase();
+
 </script>
+
+<!-- Firebase SDK (body 닫기 전에 로드) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </body>
 </html>
