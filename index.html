@@ -367,8 +367,8 @@ canvas{display:block;width:100%;height:170px;}
   <div class="pop" id="sign-pop" style="width:370px;max-width:95vw;">
     <div class="pop-title"><span>✍️ 담당자 사인</span>
       <div style="display:flex;gap:6px;align-items:center;">
-        <button class="tb" onclick="rotateSigner()" style="font-size:10px;" id="rotate-btn">📱 가로로 보기</button>
-        <button class="pop-x" onclick="cp('ov-sign');exitRotate()">×</button>
+        <button class="tb" onclick="openLandscapeSign()" style="font-size:10px;">📱 가로로 서명</button>
+        <button class="pop-x" onclick="cp('ov-sign')">×</button>
       </div>
     </div>
     <div style="font-size:11px;color:var(--txm);margin-bottom:9px;" id="sign-sub"></div>
@@ -378,6 +378,19 @@ canvas{display:block;width:100%;height:170px;}
       <button class="btn-p" onclick="cfSign()">확인 저장</button>
     </div>
   </div>
+</div>
+
+<!-- 가로 사인 전용 전체화면 -->
+<div id="landscape-sign" style="display:none;position:fixed;inset:0;z-index:9999;background:white;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="width:100%;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e5e7eb;">
+    <span style="font-size:14px;font-weight:500;color:#111;">✍️ 가로 서명</span>
+    <div style="display:flex;gap:8px;">
+      <button onclick="clLandSign()" style="padding:6px 14px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-size:12px;cursor:pointer;">지우기</button>
+      <button onclick="cfLandSign()" style="padding:6px 14px;border:none;border-radius:6px;background:#1a56db;color:white;font-size:12px;cursor:pointer;font-weight:500;">확인 저장</button>
+      <button onclick="closeLandscapeSign()" style="padding:6px 14px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-size:12px;cursor:pointer;">취소</button>
+    </div>
+  </div>
+  <canvas id="land-cv" style="flex:1;width:100%;touch-action:none;"></canvas>
 </div>
 
 <!-- 현장 추가/수정 팝업 -->
@@ -648,6 +661,17 @@ async function uploadSign(blob,siteName,managerName,dateStr){
 }
 
 // ===== 사진 업로드 핸들러 =====
+function saveToPhone(files){
+  // 핸드폰/PC에 파일 저장 (다운로드)
+  Array.from(files).forEach(function(file){
+    var url=URL.createObjectURL(file);
+    var a=document.createElement('a');
+    a.href=url;a.download=file.name;
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  });
+}
 function handlePhotoUpload(input,type){
   if(!input.files||!input.files.length)return;
   var s=gS(selSiteId);
@@ -655,10 +679,13 @@ function handlePhotoUpload(input,type){
   var resEl=document.getElementById('ph-res');
   resEl.textContent='업로드 중...';
   resEl.style.display='block';
+  // 핸드폰에 저장
+  saveToPhone(input.files);
+  // 드라이브에 업로드
   uploadPhotos(Array.from(input.files),s.name,dateStr,false).then(function(){
-    resEl.textContent='✓ 사진 업로드 완료!';
+    resEl.textContent='✓ 핸드폰 저장 + 드라이브 업로드 완료!';
   }).catch(function(){
-    resEl.textContent='✓ 사진 저장됨 (드라이브 연동 확인 필요)';
+    resEl.textContent='✓ 핸드폰 저장 완료 (드라이브 연동 확인 필요)';
   });
 }
 function handleUnscheduledPhoto(input){
@@ -667,10 +694,11 @@ function handleUnscheduledPhoto(input){
   var resEl=document.getElementById('unph-res');
   resEl.textContent='업로드 중...';
   resEl.style.display='block';
+  saveToPhone(input.files);
   uploadPhotos(Array.from(input.files),s.name,tStr(),true).then(function(){
-    resEl.textContent='✓ 사진 업로드 완료!';
+    resEl.textContent='✓ 핸드폰 저장 + 드라이브 업로드 완료!';
   }).catch(function(){
-    resEl.textContent='✓ 사진 저장됨 (드라이브 연동 확인 필요)';
+    resEl.textContent='✓ 핸드폰 저장 완료 (드라이브 연동 확인 필요)';
   });
 }
 
@@ -1105,25 +1133,53 @@ function chkRequired(){
   }
 }
 
-var isRotated=false;
-function rotateSigner(){
-  var pop=document.getElementById('sign-pop');
-  isRotated=!isRotated;
-  if(isRotated){
-    pop.classList.add('sign-rotated');
-    document.getElementById('rotate-btn').textContent='📱 세로로 보기';
-  } else {
-    pop.classList.remove('sign-rotated');
-    document.getElementById('rotate-btn').textContent='📱 가로로 보기';
-  }
-  setTimeout(initSC,100);
+var landCtx=null,landDrawing=false,landLx=0,landLy=0;
+
+function openLandscapeSign(){
+  var el=document.getElementById('landscape-sign');
+  el.style.display='flex';
+  setTimeout(function(){
+    var cv=document.getElementById('land-cv');
+    cv.width=window.innerWidth;
+    cv.height=window.innerHeight-60;
+    landCtx=cv.getContext('2d');
+    landCtx.strokeStyle='#111';landCtx.lineWidth=2.5;landCtx.lineCap='round';
+    landCtx.clearRect(0,0,cv.width,cv.height);
+    function gP(e,c){var r=c.getBoundingClientRect();return[(e.clientX-r.left),(e.clientY-r.top)];}
+    cv.onmousedown=function(e){landDrawing=true;var p=gP(e,cv);landLx=p[0];landLy=p[1];};
+    cv.onmousemove=function(e){if(!landDrawing)return;var p=gP(e,cv);landCtx.beginPath();landCtx.moveTo(landLx,landLy);landCtx.lineTo(p[0],p[1]);landCtx.stroke();landLx=p[0];landLy=p[1];};
+    cv.onmouseup=cv.onmouseleave=function(){landDrawing=false;};
+    cv.ontouchstart=function(e){e.preventDefault();landDrawing=true;var r=cv.getBoundingClientRect();landLx=e.touches[0].clientX-r.left;landLy=e.touches[0].clientY-r.top;};
+    cv.ontouchmove=function(e){e.preventDefault();if(!landDrawing)return;var r=cv.getBoundingClientRect();var x=e.touches[0].clientX-r.left,y=e.touches[0].clientY-r.top;landCtx.beginPath();landCtx.moveTo(landLx,landLy);landCtx.lineTo(x,y);landCtx.stroke();landLx=x;landLy=y;};
+    cv.ontouchend=function(){landDrawing=false;};
+  },100);
 }
-function exitRotate(){
-  var pop=document.getElementById('sign-pop');
-  pop.classList.remove('sign-rotated');
-  isRotated=false;
-  if(document.getElementById('rotate-btn'))
-    document.getElementById('rotate-btn').textContent='📱 가로로 보기';
+function closeLandscapeSign(){
+  document.getElementById('landscape-sign').style.display='none';
+}
+function clLandSign(){
+  if(landCtx){var c=document.getElementById('land-cv');landCtx.clearRect(0,0,c.width,c.height);}
+}
+function cfLandSign(){
+  var cv=document.getElementById('land-cv');
+  var s=gS(selSiteId);
+  if(!s)return;
+  cv.toBlob(function(blob){
+    if(!blob)return;
+    s.signed=true;
+    closeLandscapeSign();
+    cp('ov-sign');
+    saveData();renderST();
+    if(accessToken){
+      uploadSign(blob,s.name,s.manager,tStr()).then(function(){
+        alert('✓ 사인이 구글 드라이브에 저장됐어요!');
+      }).catch(function(e){
+        alert('드라이브 저장 실패: '+e.message);
+      });
+    } else {
+      alert('✓ 사인 저장됨 (구글 로그인 후 드라이브에도 저장됩니다)');
+    }
+  },'image/png');
 }
 
 function fmtAmt(el){
