@@ -1122,12 +1122,10 @@ function subSite(){
     if(editDone!=='')s.done=Math.min(parseInt(editDone)||0,s.total);
     s.contract=document.getElementById('n_ct').value;s.start=document.getElementById('n_st').value;
     var newEnd=document.getElementById('n_en').value;
-    // 준공일 변경시 조기준공 플래그 해제
-    if(newEnd&&newEnd!==s.end){
-      s.early=false;
-      s.origEnd=null;
-    }
     s.end=newEnd;
+    // 수정 저장시 조기준공 플래그 무조건 해제
+    s.early=false;
+    s.origEnd=null;
     s.manager=document.getElementById('n_mg').value.trim();
     s.phone=document.getElementById('n_ph').value.trim();s.email=document.getElementById('n_em').value.trim();
     s.note=document.getElementById('n_nt').value.trim();
