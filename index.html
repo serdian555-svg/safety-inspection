@@ -159,6 +159,7 @@ canvas{display:block;width:100%;height:170px;}
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -229,10 +230,16 @@ canvas{display:block;width:100%;height:170px;}
 
 <!-- 현장 관리 시트 -->
 <div class="sheet" id="sh-sites">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
     <div style="font-size:15px;font-weight:500;">현장 목록</div>
-    <button class="tb" onclick="oAdd()" style="font-size:12px;padding:5px 12px;border-color:var(--pr);color:var(--pr);">+ 현장 추가</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="tb" onclick="importExcel()" style="font-size:12px;padding:5px 12px;border-color:#10b981;color:#10b981;">📂 엑셀 가져오기</button>
+      <button class="tb" onclick="exportExcel()" style="font-size:12px;padding:5px 12px;border-color:#6b7280;color:#374151;">📥 엑셀 내보내기</button>
+      <button class="tb" onclick="downloadTemplate()" style="font-size:12px;padding:5px 12px;border-color:#f59e0b;color:#92400e;">📋 양식 다운로드</button>
+      <button class="tb" onclick="oAdd()" style="font-size:12px;padding:5px 12px;border-color:var(--pr);color:var(--pr);">+ 현장 추가</button>
+    </div>
   </div>
+  <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="handleExcelImport(this)">
   <div class="st-wrap">
     <table class="st">
       <thead><tr>
@@ -1253,6 +1260,118 @@ function renderST(){
 }
 
 function getLV(sid){var last=null;Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===sid&&e.visited){if(!last||k>last)last=k;}});});return last;}
+
+// ===== 엑셀 가져오기 =====
+function importExcel(){
+  document.getElementById('excel-input').click();
+}
+
+function handleExcelImport(input){
+  if(!input.files||!input.files.length)return;
+  var file=input.files[0];
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      var added=0;
+      rows.forEach(function(row){
+        var nm=(row['공사명']||'').toString().trim();
+        if(!nm)return;
+        // 이미 있는 현장 스킵
+        var exists=sites.some(function(s){return s.name===nm;});
+        if(exists)return;
+        var total=parseInt(row['총지도횟수']||row['총 지도횟수']||0);
+        var done=parseInt(row['완료횟수']||0);
+        if(done>total)done=total;
+        sites.push({
+          id:Date.now()+added,
+          name:nm,
+          company:(row['업체명']||'').toString().trim(),
+          client:(row['발주기관']||'').toString().trim(),
+          address:(row['주소']||'').toString().trim(),
+          amount:(row['계약금액']||'').toString().replace(/,/g,'').trim(),
+          total:total,
+          done:done,
+          manager:(row['담당자']||'').toString().trim(),
+          phone:(row['연락처']||'').toString().trim(),
+          email:(row['이메일']||'').toString().trim(),
+          note:(row['비고']||'').toString().trim(),
+          contract:(row['계약일']||'').toString().trim(),
+          start:(row['착공일']||'').toString().trim(),
+          end:(row['준공일']||'').toString().trim(),
+          origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false
+        });
+        added++;
+      });
+      saveData();renderST();renderAB();
+      alert('✓ '+added+'개 현장이 등록됐어요!');
+    }catch(err){
+      alert('엑셀 파일 읽기 오류: '+err.message);
+    }
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ===== 엑셀 내보내기 =====
+function exportExcel(){
+  var headers=['공사명','업체명','발주기관','계약금액','총지도횟수','완료횟수','계약일','착공일','준공일','담당자','연락처','이메일','주소','비고'];
+  var rows=sites.map(function(s){
+    return {
+      '공사명':s.name||'',
+      '업체명':s.company||'',
+      '발주기관':s.client||'',
+      '계약금액':s.amount||'',
+      '총지도횟수':s.total||0,
+      '완료횟수':s.done||0,
+      '계약일':s.contract||'',
+      '착공일':s.start||'',
+      '준공일':s.end||'',
+      '담당자':s.manager||'',
+      '연락처':s.phone||'',
+      '이메일':s.email||'',
+      '주소':s.address||'',
+      '비고':s.note||''
+    };
+  });
+  var ws=XLSX.utils.json_to_sheet(rows,{header:headers});
+  // 컬럼 너비 설정
+  ws['!cols']=[{wch:30},{wch:20},{wch:15},{wch:15},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:15},{wch:20},{wch:30},{wch:20}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'현장목록');
+  var today=new Date();
+  var fname='현장목록_'+today.getFullYear()+(today.getMonth()+1).toString().padStart(2,'0')+today.getDate().toString().padStart(2,'0')+'.xlsx';
+  XLSX.writeFile(wb,fname);
+}
+
+// ===== 양식 다운로드 =====
+function downloadTemplate(){
+  var headers=['공사명','업체명','발주기관','계약금액','총지도횟수','완료횟수','계약일','착공일','준공일','담당자','연락처','이메일','주소','비고'];
+  var sample=[{
+    '공사명':'역삼동 오피스텔 신축공사 (예시)',
+    '업체명':'㈜한국건설',
+    '발주기관':'강남구청',
+    '계약금액':'45000000',
+    '총지도횟수':'12',
+    '완료횟수':'3',
+    '계약일':'2025-03-01',
+    '착공일':'2025-04-01',
+    '준공일':'2026-05-12',
+    '담당자':'홍길동',
+    '연락처':'010-1234-5678',
+    '이메일':'hong@example.com',
+    '주소':'서울시 강남구 역삼동 123',
+    '비고':''
+  }];
+  var ws=XLSX.utils.json_to_sheet(sample,{header:headers});
+  ws['!cols']=[{wch:30},{wch:20},{wch:15},{wch:15},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:15},{wch:20},{wch:30},{wch:20}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'현장목록');
+  XLSX.writeFile(wb,'현장등록_양식.xlsx');
+}
 function getCS(){return sites.filter(function(s){return s.done>=s.total&&s.total>0;});}
 function getCY(){var yrs=[];getCS().forEach(function(s){var lv=getLV(s.id);var y=lv?lv.split('-')[0]:String(new Date().getFullYear());if(yrs.indexOf(y)<0)yrs.push(y);});return yrs.sort(function(a,b){return b-a;});}
 function renderComp(){
