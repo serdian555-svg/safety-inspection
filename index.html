@@ -132,6 +132,10 @@ canvas{display:block;width:100%;height:170px;}
 .mini-day.sun{color:#dc2626;}
 .mini-day.sat{color:#2563eb;}
 .confirm-pop{background:var(--bg);border-radius:12px;padding:20px;width:300px;max-width:90vw;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
+.split-wrap{display:flex;gap:0;height:calc(100vh - 90px);}
+.split-wrap .sheet{flex:1;overflow-y:auto;border-right:2px solid var(--bd);padding:14px;}
+.split-wrap .sheet:last-child{border-right:none;}
+.split-wrap.active{display:flex!important;}
 .confirm-btns{display:flex;gap:8px;margin-top:14px;}
 .date-edit-pop{background:var(--bg);border-radius:12px;padding:20px;width:340px;max-width:95vw;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
 .sign-rotated{
@@ -209,12 +213,18 @@ canvas{display:block;width:100%;height:170px;}
 </div>
 
 <div class="tab-bar">
-  <button class="tab-btn active" onclick="sw('cal')">📅 달력</button>
-  <button class="tab-btn" onclick="sw('sites')">🏗️ 현장 관리</button>
-  <button class="tab-btn" onclick="sw('comp')">✅ 완료현장</button>
+  <button class="tab-btn active" onclick="sw('cal')" id="tab-cal">📅 달력</button>
+  <button class="tab-btn" onclick="sw('sites')" id="tab-sites">🏗️ 현장 관리</button>
+  <button class="tab-btn" onclick="sw('comp')" id="tab-comp">✅ 완료현장</button>
+  <button class="tab-btn" id="split-btn" onclick="toggleSplit()" style="margin-left:auto;display:none;">⊞ 분할 보기</button>
 </div>
 
 <!-- 달력 시트 -->
+<div id="split-wrap" style="display:none;">
+  <div class="sheet active" id="sh-cal-split" style="flex:1;overflow-y:auto;border-right:2px solid var(--bd);padding:14px;display:none;"></div>
+  <div class="sheet" id="sh-sites-split" style="flex:1;overflow-y:auto;padding:14px;display:none;"></div>
+</div>
+
 <div class="sheet active" id="sh-cal">
   <div class="alert-banner" id="ab" style="display:none;"></div>
   <div class="cal-header">
@@ -788,12 +798,61 @@ function showALP(){
 }
 
 // ===== 탭 =====
+var isSplit=false;
+
 function sw(tab){
+  if(isSplit)exitSplit();
   document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',['cal','sites','comp'][i]===tab);});
   document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('active');});
   document.getElementById('sh-'+tab).classList.add('active');
   if(tab==='sites')renderST();
   if(tab==='comp')renderComp();
+}
+
+function toggleSplit(){
+  if(isSplit)exitSplit();
+  else enterSplit();
+}
+
+function enterSplit(){
+  isSplit=true;
+  // 기존 시트 숨기기
+  document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  // 분할 래퍼 표시
+  var wrap=document.getElementById('split-wrap');
+  wrap.style.display='flex';
+  // 달력 복사
+  var calSplit=document.getElementById('sh-cal-split');
+  calSplit.innerHTML=document.getElementById('sh-cal').innerHTML;
+  calSplit.style.display='block';
+  // 현장관리 복사
+  var sitesSplit=document.getElementById('sh-sites-split');
+  sitesSplit.innerHTML=document.getElementById('sh-sites').innerHTML;
+  sitesSplit.style.display='block';
+  renderST();
+  document.getElementById('split-btn').textContent='⊞ 분할 해제';
+  document.getElementById('split-btn').classList.add('active');
+}
+
+function exitSplit(){
+  isSplit=false;
+  document.getElementById('split-wrap').style.display='none';
+  document.getElementById('sh-cal-split').style.display='none';
+  document.getElementById('sh-sites-split').style.display='none';
+  document.getElementById('sh-cal').classList.add('active');
+  document.getElementById('tab-cal').classList.add('active');
+  document.getElementById('split-btn').textContent='⊞ 분할 보기';
+  document.getElementById('split-btn').classList.remove('active');
+  renderCal();
+}
+
+// PC에서만 분할보기 버튼 표시
+function initSplitBtn(){
+  var isMobile=/Mobi|Android/i.test(navigator.userAgent);
+  if(!isMobile){
+    document.getElementById('split-btn').style.display='block';
+  }
 }
 function cm(d){cM+=d;if(cM>11){cM=0;cY++;}if(cM<0){cM=11;cY--;}renderCal();}
 
@@ -1060,7 +1119,14 @@ function subSite(){
     var editDone=document.getElementById('n_done').value;
     if(editDone!=='')s.done=Math.min(parseInt(editDone)||0,s.total);
     s.contract=document.getElementById('n_ct').value;s.start=document.getElementById('n_st').value;
-    s.end=document.getElementById('n_en').value;s.manager=document.getElementById('n_mg').value.trim();
+    var newEnd=document.getElementById('n_en').value;
+    // 준공일 변경시 조기준공 플래그 해제
+    if(newEnd&&newEnd!==s.end){
+      s.early=false;
+      s.origEnd=null;
+    }
+    s.end=newEnd;
+    s.manager=document.getElementById('n_mg').value.trim();
     s.phone=document.getElementById('n_ph').value.trim();s.email=document.getElementById('n_em').value.trim();
     s.note=document.getElementById('n_nt').value.trim();
   } else {
@@ -1534,6 +1600,7 @@ function saveData(){
 
 // 초기화
 initFirebase();
+initSplitBtn();
 
 </script>
 
