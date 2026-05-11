@@ -291,7 +291,7 @@ canvas{display:block;width:100%;height:170px;}
     <div id="date-sites"></div>
     <div class="add-sec">
       <div class="add-label">현장 추가</div>
-      <input type="text" class="s-input" id="sch-search" placeholder="공사명으로 검색..." oninput="onSS()" autocomplete="off">
+      <input type="text" class="s-input" id="sch-search" placeholder="공사명으로 검색..." oninput="onSS()" autocomplete="off" lang="ko" inputmode="text">
       <div id="sch-res"></div>
     </div>
   </div>
@@ -405,12 +405,12 @@ canvas{display:block;width:100%;height:170px;}
   <div class="pop" style="width:520px;max-height:92vh;">
     <div class="pop-title"><span id="add-title">새 현장 추가</span><button class="pop-x" onclick="cp('ov-add')">×</button></div>
     <div class="frm">
-      <div class="fg"><div class="fl">공사명 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_nm" oninput="chkRequired()"></div>
+      <div class="fg"><div class="fl">공사명 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_nm" lang="ko" inputmode="text" oninput="chkRequired()"></div>
       <div class="fc2">
-        <div class="fg"><div class="fl">업체명 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_co" oninput="chkRequired()"></div>
-        <div class="fg"><div class="fl">발주기관</div><input type="text" class="fi" id="n_cl"></div>
+        <div class="fg"><div class="fl">업체명 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_co" lang="ko" inputmode="text" oninput="chkRequired()"></div>
+        <div class="fg"><div class="fl">발주기관</div><input type="text" class="fi" id="n_cl" lang="ko" inputmode="text"></div>
       </div>
-      <div class="fg"><div class="fl">현장 주소</div><input type="text" class="fi" id="n_ad"></div>
+      <div class="fg"><div class="fl">현장 주소</div><input type="text" class="fi" id="n_ad" lang="ko" inputmode="text"></div>
       <div class="fc2">
         <div class="fg"><div class="fl">계약금액 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_am" oninput="fmtAmt(this);chkRequired();" placeholder="예: 45,000,000"></div>
         <div class="fg"><div class="fl">총 지도횟수 <span style="color:#dc2626;">*</span></div><input type="number" class="fi" id="n_tot" min="1" oninput="chkRequired()"></div>
@@ -425,11 +425,11 @@ canvas{display:block;width:100%;height:170px;}
         <div class="fg"><div class="fl">준공일</div><input type="date" class="fi" id="n_en"></div>
       </div>
       <div class="fc2">
-        <div class="fg"><div class="fl">담당자</div><input type="text" class="fi" id="n_mg"></div>
-        <div class="fg"><div class="fl">핸드폰번호</div><input type="text" class="fi" id="n_ph"></div>
+        <div class="fg"><div class="fl">담당자</div><input type="text" class="fi" id="n_mg" lang="ko" inputmode="text"></div>
+        <div class="fg"><div class="fl">핸드폰번호</div><input type="text" class="fi" id="n_ph" lang="ko" inputmode="text"></div>
       </div>
-      <div class="fg"><div class="fl">이메일</div><input type="text" class="fi" id="n_em"></div>
-      <div class="fg"><div class="fl">비고</div><input type="text" class="fi" id="n_nt"></div>
+      <div class="fg"><div class="fl">이메일</div><input type="text" class="fi" id="n_em" lang="ko" inputmode="text"></div>
+      <div class="fg"><div class="fl">비고</div><input type="text" class="fi" id="n_nt" lang="ko" inputmode="text"></div>
       <button class="btn-p" id="add-sub" onclick="subSite()" style="padding:9px;width:100%;border-radius:7px;font-size:13px;opacity:0.4;cursor:not-allowed;" disabled>현장 추가</button>
     </div>
   </div>
@@ -1245,7 +1245,7 @@ function renderST(){
       '<td style="white-space:nowrap;">'+(s.manager||'-')+'</td>'+
       '<td style="white-space:nowrap;">'+(s.phone||'-')+'</td>'+
       '<td style="text-align:center;"><input type="checkbox" '+(s.dc?'checked':'')+' onchange="gS('+s.id+').dc=this.checked;saveData();" style="width:15px;height:15px;cursor:pointer;"></td>'+
-      '<td><input type="text" value="'+(s.note||'')+'" onchange="gS('+s.id+').note=this.value;saveData();" style="width:90px;padding:3px 6px;border:1px solid var(--bd);border-radius:4px;font-size:11px;background:var(--bg);color:var(--tx);outline:none;" placeholder="비고 입력..."></td>'+
+      '<td><input type="text" value="'+(s.note||'')+'" onchange="gS('+s.id+').note=this.value;saveData();" style="width:90px;padding:3px 6px;border:1px solid var(--bd);border-radius:4px;font-size:11px;background:var(--bg);color:var(--tx);outline:none;" placeholder="비고 입력..." lang="ko" inputmode="text"></td>'+
       '<td><div style="display:flex;gap:3px;flex-wrap:wrap;">'+
         '<button class="tb tb-sign '+(s.signed?'signed':'')+'" onclick="oSign('+s.id+')">'+(s.signed?'✓완료':'서명받기')+'</button>'+
         '<button class="tb tb-photo" onclick="oUnPhoto('+s.id+')">미실시사진</button>'+
