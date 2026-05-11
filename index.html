@@ -378,7 +378,7 @@ canvas{display:block;width:100%;height:170px;}
         <div class="fg"><div class="fl">총 지도횟수</div><input type="number" class="fi" id="n_tot" min="1"></div>
       </div>
       <div class="fc2">
-        <div class="fg"><div class="fl">시작 지도횟수 <span style="color:var(--txm);font-size:9px;">(이미 진행한 횟수)</span></div><input type="number" class="fi" id="n_done" min="0" placeholder="0"></div>
+        <div class="fg"><div class="fl">완료 지도횟수 <span style="color:var(--txm);font-size:9px;">(이미 완료한 횟수)</span></div><input type="number" class="fi" id="n_done" min="0" placeholder="0"></div>
         <div class="fg" style="justify-content:flex-end;padding-top:18px;"><span style="font-size:11px;color:var(--txm);">예: 3 입력시 → 3/8 로 시작</span></div>
       </div>
       <div class="fc3">
@@ -457,31 +457,64 @@ function loadData(){
 }
 
 // ===== 구글 로그인 =====
+var tokenClient=null;
+
+function setLoginUI(ok){
+  if(ok){
+    document.getElementById('login-status').textContent='구글 드라이브 연결됨 ✓';
+    document.getElementById('login-btn').textContent='연결 해제';
+    document.getElementById('login-btn').onclick=handleLogout;
+    document.getElementById('drive-status').className='drive-status drive-ok';
+    document.getElementById('drive-status').textContent='드라이브 ✓';
+  } else {
+    document.getElementById('login-status').textContent='구글 드라이브 미연결';
+    document.getElementById('login-btn').textContent='구글 로그인';
+    document.getElementById('login-btn').onclick=handleLogin;
+    document.getElementById('drive-status').className='drive-status drive-no';
+    document.getElementById('drive-status').textContent='드라이브 ✗';
+  }
+}
+
 function handleLogin(){
-  var client=google.accounts.oauth2.initTokenClient({
+  tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,
     scope:SCOPES,
     callback:function(resp){
       if(resp.access_token){
         accessToken=resp.access_token;
-        currentUser='연결됨';
-        document.getElementById('login-status').textContent='구글 드라이브 연결됨 ✓';
-        document.getElementById('login-btn').textContent='연결 해제';
-        document.getElementById('login-btn').onclick=handleLogout;
-        document.getElementById('drive-status').className='drive-status drive-ok';
-        document.getElementById('drive-status').textContent='드라이브 ✓';
+        var expiry=Date.now()+(55*60*1000);
+        localStorage.setItem('gd_token',resp.access_token);
+        localStorage.setItem('gd_expiry',String(expiry));
+        setLoginUI(true);
+        setTimeout(silentRefresh,55*60*1000);
       }
     }
   });
-  client.requestAccessToken();
+  tokenClient.requestAccessToken();
 }
+
+function silentRefresh(){
+  if(!tokenClient)return;
+  // 토큰 갱신은 기존 클라이언트로 조용히 재요청
+  tokenClient.requestAccessToken({prompt:''});
+}
+
+function tryAutoLogin(){
+  var token=localStorage.getItem('gd_token');
+  var expiry=localStorage.getItem('gd_expiry');
+  if(token&&expiry&&Date.now()<parseInt(expiry)){
+    accessToken=token;
+    setLoginUI(true);
+    var remaining=parseInt(expiry)-Date.now();
+    setTimeout(silentRefresh,remaining);
+  }
+}
+
 function handleLogout(){
-  accessToken=null;currentUser=null;
-  document.getElementById('login-status').textContent='구글 드라이브 미연결';
-  document.getElementById('login-btn').textContent='구글 로그인';
-  document.getElementById('login-btn').onclick=handleLogin;
-  document.getElementById('drive-status').className='drive-status drive-no';
-  document.getElementById('drive-status').textContent='드라이브 ✗';
+  accessToken=null;
+  localStorage.removeItem('gd_token');
+  localStorage.removeItem('gd_expiry');
+  setLoginUI(false);
 }
 
 // ===== 구글 드라이브 함수 =====
@@ -506,6 +539,7 @@ async function driveFindFolder(name,parentId){
     headers:{'Authorization':'Bearer '+accessToken}
   });
   var data=await resp.json();
+  if(data.error){console.error('driveFindFolder 오류:',data.error);return null;}
   return(data.files&&data.files.length>0)?data.files[0].id:null;
 }
 
@@ -516,17 +550,30 @@ async function driveGetOrCreateFolder(name,parentId){
 }
 
 async function driveUploadFile(file,folderId,fileName){
-  if(!accessToken)return;
+  if(!accessToken){console.warn('드라이브: 로그인 필요');throw new Error('로그인 필요');}
   var meta={name:fileName||file.name};
   if(folderId)meta.parents=[folderId];
   var form=new FormData();
   form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
   form.append('file',file);
-  await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+  var resp=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
     method:'POST',
     headers:{'Authorization':'Bearer '+accessToken},
     body:form
   });
+  var data=await resp.json();
+  if(data.error){
+    console.error('드라이브 업로드 오류:',JSON.stringify(data.error));
+    if(data.error.code===401){
+      accessToken=null;
+      localStorage.removeItem('gd_token');
+      localStorage.removeItem('gd_expiry');
+      setLoginUI(false);
+      alert('구글 드라이브 로그인이 만료됐어요. 다시 로그인해주세요!');
+    }
+    throw new Error(data.error.message);
+  }
+  return data;
 }
 
 // 현장 폴더 생성 (현장 추가시 자동)
@@ -1105,6 +1152,7 @@ document.querySelectorAll('.ov').forEach(function(o){
 var db=null;
 
 function initFirebase(){
+  tryAutoLogin();
   try{
     var firebaseConfig={
       apiKey:"AIzaSyBB61wYKJcm1XXdB_Bz6H5I561pDd5AFbY",
