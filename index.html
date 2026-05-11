@@ -250,6 +250,21 @@ canvas{display:block;width:100%;height:170px;}
 </div>
 
 <!-- 날짜 팝업 1단계 -->
+<!-- 현장 삭제 확인 팝업 -->
+<div class="ov" id="ov-del-site">
+  <div class="confirm-pop">
+    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">현장 삭제</div>
+    <div style="font-size:12px;color:var(--txm);margin-bottom:4px;">아래 현장을 삭제할까요?</div>
+    <div style="font-size:13px;font-weight:500;color:#dc2626;margin-bottom:4px;" id="del-site-name"></div>
+    <div style="font-size:11px;color:var(--txm);margin-bottom:12px;">삭제하면 복구할 수 없어요!</div>
+    <input type="hidden" id="del-site-id">
+    <div class="confirm-btns">
+      <button class="btn-o" style="flex:1;" onclick="cp('ov-del-site')">취소</button>
+      <button class="btn-p" style="flex:1;background:#dc2626;" onclick="doDeleteSite()">삭제</button>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ov-date">
   <div class="pop">
     <div class="pop-title"><span id="date-title"></span><button class="pop-x" onclick="cp('ov-date')">×</button></div>
@@ -349,7 +364,7 @@ canvas{display:block;width:100%;height:170px;}
 
 <!-- 현장 추가/수정 팝업 -->
 <div class="ov" id="ov-add">
-  <div class="pop">
+  <div class="pop" style="width:520px;max-height:92vh;">
     <div class="pop-title"><span id="add-title">새 현장 추가</span><button class="pop-x" onclick="cp('ov-add')">×</button></div>
     <div class="frm">
       <div class="fg"><div class="fl">공사명 *</div><input type="text" class="fi" id="n_nm"></div>
@@ -359,7 +374,7 @@ canvas{display:block;width:100%;height:170px;}
       </div>
       <div class="fg"><div class="fl">현장 주소</div><input type="text" class="fi" id="n_ad"></div>
       <div class="fc2">
-        <div class="fg"><div class="fl">계약금액</div><input type="text" class="fi" id="n_am"></div>
+        <div class="fg"><div class="fl">계약금액</div><input type="text" class="fi" id="n_am" oninput="fmtAmt(this)" placeholder="예: 45,000,000"></div>
         <div class="fg"><div class="fl">총 지도횟수</div><input type="number" class="fi" id="n_tot" min="1"></div>
       </div>
       <div class="fc3">
@@ -858,7 +873,7 @@ function oEdit(sid){
   editId=sid;var s=gS(sid);
   document.getElementById('n_nm').value=s.name||'';document.getElementById('n_co').value=s.company||'';
   document.getElementById('n_cl').value=s.client||'';document.getElementById('n_ad').value=s.address||'';
-  document.getElementById('n_am').value=s.amount||'';document.getElementById('n_tot').value=s.total||'';
+  document.getElementById('n_am').value=s.amount?parseInt(s.amount.replace(/,/g,'')||0).toLocaleString('ko-KR'):'';document.getElementById('n_tot').value=s.total||'';
   document.getElementById('n_ct').value=s.contract||'';document.getElementById('n_st').value=s.start||'';
   document.getElementById('n_en').value=s.end||'';document.getElementById('n_mg').value=s.manager||'';
   document.getElementById('n_ph').value=s.phone||'';document.getElementById('n_em').value=s.email||'';
@@ -872,14 +887,14 @@ function subSite(){
   if(editId){
     var s=gS(editId);
     s.name=nm;s.company=document.getElementById('n_co').value.trim();s.client=document.getElementById('n_cl').value.trim();
-    s.address=document.getElementById('n_ad').value.trim();s.amount=document.getElementById('n_am').value.trim();
+    s.address=document.getElementById('n_ad').value.trim();s.amount=document.getElementById('n_am').value.replace(/,/g,'').trim();
     s.total=parseInt(document.getElementById('n_tot').value)||s.total;
     s.contract=document.getElementById('n_ct').value;s.start=document.getElementById('n_st').value;
     s.end=document.getElementById('n_en').value;s.manager=document.getElementById('n_mg').value.trim();
     s.phone=document.getElementById('n_ph').value.trim();s.email=document.getElementById('n_em').value.trim();
     s.note=document.getElementById('n_nt').value.trim();
   } else {
-    var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.trim(),total:parseInt(document.getElementById('n_tot').value)||0,done:0,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false};
+    var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.replace(/,/g,'').trim(),total:parseInt(document.getElementById('n_tot').value)||0,done:0,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false};
     sites.push(newSite);
     // 구글 드라이브에 현장 폴더 자동 생성
     if(accessToken)createSiteFolder(nm);
@@ -958,12 +973,39 @@ function getCMV(sid){
 }
 function getSorted(){
   var early=sites.filter(function(s){return s.early&&!s.stopped&&s.done<s.total;});
-  var normal=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt;});
+  // 보고서 미작성 + 방문기록 있는 현장 맨 위
+  var needReport=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&hasUnreportedVisit(s.id);});
+  var normal=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&!hasUnreportedVisit(s.id);});
   var rptDone=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&s.rpt;});
   var stopped=sites.filter(function(s){return s.stopped;});
-  return early.concat(normal).concat(rptDone).concat(stopped);
+  return early.concat(needReport).concat(normal).concat(rptDone).concat(stopped);
 }
 function toggleRpt(sid,v){gS(sid).rpt=v;saveData();renderST();}
+function fmtAmt(el){
+  var v=el.value.replace(/[^0-9]/g,'');
+  if(v)el.value=parseInt(v).toLocaleString('ko-KR');
+  else el.value='';
+}
+function deleteSite(sid){
+  // 삭제 확인 팝업 대신 커스텀 방식
+  var s=gS(sid);
+  document.getElementById('del-site-name').textContent=s.name;
+  document.getElementById('del-site-id').value=sid;
+  document.getElementById('ov-del-site').classList.add('open');
+}
+function doDeleteSite(){
+  var sid=parseInt(document.getElementById('del-site-id').value);
+  sites=sites.filter(function(s){return s.id!==sid;});
+  // 스케줄에서도 제거
+  Object.keys(sch).forEach(function(k){
+    sch[k]=sch[k].filter(function(e){return e.siteId!==sid;});
+    if(sch[k].length===0)delete sch[k];
+  });
+  cp('ov-del-site');saveData();renderST();renderCal();renderAB();
+}
+function clearStopHist(sid){
+  var s=gS(sid);if(s){s.stopHist=false;saveData();renderST();}
+}
 function renderST(){
   var today=new Date();today.setHours(0,0,0,0);
   document.getElementById('st-body').innerHTML=getSorted().map(function(s){
@@ -1002,6 +1044,8 @@ function renderST(){
         '<button class="tb tb-e" onclick="oEdit('+s.id+')">수정</button>'+
         '<button class="tb tb-early" onclick="oEarly('+s.id+')">조기준공</button>'+
         (s.stopped?'<button class="tb tb-resume" onclick="tStop('+s.id+')">공사재개</button>':'<button class="tb tb-stop" onclick="tStop('+s.id+')">공사정지</button>')+
+        (s.stopHist&&!s.stopped?'<button class="tb" style="border-color:#9ca3af;color:#9ca3af;" onclick="clearStopHist('+s.id+')">이력삭제</button>':'')+
+        '<button class="tb" style="border-color:#dc2626;background:#fff5f5;color:#dc2626;" onclick="deleteSite('+s.id+')">삭제</button>'+
       '</div></td>'+
       '</tr>';
   }).join('');
@@ -1040,7 +1084,10 @@ function togM(key){var el=document.getElementById('cm-'+key);var arr=document.ge
 function togSub(sid){var s=gS(sid);s.submitted=!s.submitted;saveData();renderComp();}
 function compExp(exp){document.querySelectorAll('[id^="cm-"]').forEach(function(el){var key=el.id.replace('cm-','');el.style.display=exp?'block':'none';var arr=document.getElementById('arr-'+key);if(arr)arr.textContent=exp?'▲':'▼';cExp[key]=exp;});}
 
-document.querySelectorAll('.ov').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});
+document.querySelectorAll('.ov').forEach(function(o){
+  if(o.id==='ov-add')return; // 현장추가 팝업은 바깥클릭으로 안닫힘
+  o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});
+});
 
 
 // ===== Firebase Firestore 연동 =====
