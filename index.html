@@ -377,6 +377,10 @@ canvas{display:block;width:100%;height:170px;}
         <div class="fg"><div class="fl">계약금액</div><input type="text" class="fi" id="n_am" oninput="fmtAmt(this)" placeholder="예: 45,000,000"></div>
         <div class="fg"><div class="fl">총 지도횟수</div><input type="number" class="fi" id="n_tot" min="1"></div>
       </div>
+      <div class="fc2">
+        <div class="fg"><div class="fl">시작 지도횟수 <span style="color:var(--txm);font-size:9px;">(이미 진행한 횟수)</span></div><input type="number" class="fi" id="n_done" min="0" placeholder="0"></div>
+        <div class="fg" style="justify-content:flex-end;padding-top:18px;"><span style="font-size:11px;color:var(--txm);">예: 3 입력시 → 3/8 로 시작</span></div>
+      </div>
       <div class="fc3">
         <div class="fg"><div class="fl">계약일</div><input type="date" class="fi" id="n_ct"></div>
         <div class="fg"><div class="fl">착공일</div><input type="date" class="fi" id="n_st"></div>
@@ -865,6 +869,7 @@ function oAdd(){
   editId=null;
   ['n_nm','n_co','n_cl','n_ad','n_am','n_mg','n_ph','n_em','n_nt','n_ct','n_st','n_en'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('n_tot').value='';
+  document.getElementById('n_done').value='';
   document.getElementById('add-title').textContent='새 현장 추가';
   document.getElementById('add-sub').textContent='현장 추가';
   document.getElementById('ov-add').classList.add('open');
@@ -872,6 +877,7 @@ function oAdd(){
 function oEdit(sid){
   editId=sid;var s=gS(sid);
   document.getElementById('n_nm').value=s.name||'';document.getElementById('n_co').value=s.company||'';
+  document.getElementById('n_done').value=s.done||0;
   document.getElementById('n_cl').value=s.client||'';document.getElementById('n_ad').value=s.address||'';
   document.getElementById('n_am').value=s.amount?parseInt(s.amount.replace(/,/g,'')||0).toLocaleString('ko-KR'):'';document.getElementById('n_tot').value=s.total||'';
   document.getElementById('n_ct').value=s.contract||'';document.getElementById('n_st').value=s.start||'';
@@ -889,12 +895,17 @@ function subSite(){
     s.name=nm;s.company=document.getElementById('n_co').value.trim();s.client=document.getElementById('n_cl').value.trim();
     s.address=document.getElementById('n_ad').value.trim();s.amount=document.getElementById('n_am').value.replace(/,/g,'').trim();
     s.total=parseInt(document.getElementById('n_tot').value)||s.total;
+    var editDone=document.getElementById('n_done').value;
+    if(editDone!=='')s.done=Math.min(parseInt(editDone)||0,s.total);
     s.contract=document.getElementById('n_ct').value;s.start=document.getElementById('n_st').value;
     s.end=document.getElementById('n_en').value;s.manager=document.getElementById('n_mg').value.trim();
     s.phone=document.getElementById('n_ph').value.trim();s.email=document.getElementById('n_em').value.trim();
     s.note=document.getElementById('n_nt').value.trim();
   } else {
-    var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.replace(/,/g,'').trim(),total:parseInt(document.getElementById('n_tot').value)||0,done:0,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false};
+    var startDone=parseInt(document.getElementById('n_done').value)||0;
+    var totalCnt=parseInt(document.getElementById('n_tot').value)||0;
+    if(startDone>totalCnt)startDone=totalCnt;
+    var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.replace(/,/g,'').trim(),total:totalCnt,done:startDone,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false};
     sites.push(newSite);
     // 구글 드라이브에 현장 폴더 자동 생성
     if(accessToken)createSiteFolder(nm);
