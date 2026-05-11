@@ -614,34 +614,69 @@ async function driveUploadFile(file,folderId,fileName){
   return data;
 }
 
-// 기술지도관련 루트 폴더 ID 캐시
+// 폴더 ID 캐시
 var rootFolderId=null;
+var yearFolderCache={};
+var siteFolderCache={};
 
 async function getRootFolder(){
   if(rootFolderId)return rootFolderId;
-  // 먼저 기존 폴더 검색
   var existing=await driveFindFolder('기술지도관련',null);
-  if(existing){
-    rootFolderId=existing;
-  } else {
-    rootFolderId=await driveCreateFolder('기술지도관련',null);
-  }
+  rootFolderId=existing||await driveCreateFolder('기술지도관련',null);
   return rootFolderId;
 }
 
-// 현장 폴더 생성 (현장 추가시 자동)
-async function createSiteFolder(siteName){
-  if(!accessToken)return;
+// 년도 폴더 가져오기 (예: 2026년)
+async function getYearFolder(year){
+  var key=String(year);
+  if(yearFolderCache[key])return yearFolderCache[key];
   var root=await getRootFolder();
-  await driveGetOrCreateFolder(siteName,root);
+  var name=year+'년';
+  var id=await driveGetOrCreateFolder(name,root);
+  yearFolderCache[key]=id;
+  return id;
+}
+
+// 현장 폴더명 생성: (YY.MM)공사명
+function getSiteFolderName(site){
+  var dateRef=site.contract||null;
+  var y,m;
+  if(dateRef&&dateRef.length>=7){
+    var parts=dateRef.split('-');
+    y=parseInt(parts[0]);
+    m=parseInt(parts[1]);
+  } else {
+    var now=new Date();
+    y=now.getFullYear();
+    m=now.getMonth()+1;
+  }
+  var yy=String(y).slice(-2);
+  var mm=String(m).padStart(2,'0');
+  return {folderName:'('+yy+'.'+mm+')'+site.name, year:y};
+}
+
+// 현장 폴더 가져오기
+async function getSiteFolder(site){
+  var key=site.id;
+  if(siteFolderCache[key])return siteFolderCache[key];
+  var info=getSiteFolderName(site);
+  var yearFolder=await getYearFolder(info.year);
+  var id=await driveGetOrCreateFolder(info.folderName,yearFolder);
+  siteFolderCache[key]=id;
+  return id;
+}
+
+// 현장 추가시 자동 폴더 생성
+async function createSiteFolder(site){
+  if(!accessToken)return;
+  await getSiteFolder(site);
 }
 
 // 사진 업로드
-async function uploadPhotos(files,siteName,dateStr,isUnscheduled){
+async function uploadPhotos(files,site,dateStr,isUnscheduled){
   if(!accessToken){console.warn('업로드 실패: 로그인 필요');return;}
   try{
-    var root=await getRootFolder();
-    var siteFolder=await driveGetOrCreateFolder(siteName,root);
+    var siteFolder=await getSiteFolder(site);
     var folderName=isUnscheduled?'(미실시)'+dateStr:dateStr;
     var dateFolder=await driveGetOrCreateFolder(folderName,siteFolder);
     for(var i=0;i<files.length;i++){
@@ -654,11 +689,10 @@ async function uploadPhotos(files,siteName,dateStr,isUnscheduled){
 }
 
 // 사인 업로드
-async function uploadSign(blob,siteName,managerName,dateStr){
+async function uploadSign(blob,site,managerName,dateStr){
   if(!accessToken){console.warn('사인 업로드 실패: 로그인 필요');return;}
   try{
-    var root=await getRootFolder();
-    var siteFolder=await driveGetOrCreateFolder(siteName,root);
+    var siteFolder=await getSiteFolder(site);
     var fileName=managerName+'_사인_'+dateStr+'.png';
     await driveUploadFile(blob,siteFolder,fileName);
   }catch(e){
@@ -686,10 +720,8 @@ function handlePhotoUpload(input,type){
   var resEl=document.getElementById('ph-res');
   resEl.textContent='업로드 중...';
   resEl.style.display='block';
-  // 핸드폰에 저장
   saveToPhone(input.files);
-  // 드라이브에 업로드
-  uploadPhotos(Array.from(input.files),s.name,dateStr,false).then(function(){
+  uploadPhotos(Array.from(input.files),s,dateStr,false).then(function(){
     resEl.textContent='✓ 핸드폰 저장 + 드라이브 업로드 완료!';
   }).catch(function(){
     resEl.textContent='✓ 핸드폰 저장 완료 (드라이브 연동 확인 필요)';
@@ -702,7 +734,7 @@ function handleUnscheduledPhoto(input){
   resEl.textContent='업로드 중...';
   resEl.style.display='block';
   saveToPhone(input.files);
-  uploadPhotos(Array.from(input.files),s.name,tStr(),true).then(function(){
+  uploadPhotos(Array.from(input.files),s,tStr(),true).then(function(){
     resEl.textContent='✓ 핸드폰 저장 + 드라이브 업로드 완료!';
   }).catch(function(){
     resEl.textContent='✓ 핸드폰 저장 완료 (드라이브 연동 확인 필요)';
@@ -980,7 +1012,7 @@ function cfSign(){
     saveData();
     renderST();
     if(accessToken){
-      uploadSign(blob,s.name,s.manager,tStr()).then(function(){
+      uploadSign(blob,s,s.manager,tStr()).then(function(){
         alert('✓ 사인이 구글 드라이브에 저장됐어요!');
       }).catch(function(e){
         alert('드라이브 저장 실패: '+e.message);
@@ -1038,7 +1070,7 @@ function subSite(){
     var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.replace(/,/g,'').trim(),total:totalCnt,done:startDone,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false};
     sites.push(newSite);
     // 구글 드라이브에 현장 폴더 자동 생성
-    if(accessToken)createSiteFolder(nm);
+    if(accessToken)createSiteFolder(newSite);
   }
   cp('ov-add');saveData();renderST();renderAB();
 }
@@ -1178,7 +1210,7 @@ function cfLandSign(){
     cp('ov-sign');
     saveData();renderST();
     if(accessToken){
-      uploadSign(blob,s.name,s.manager,tStr()).then(function(){
+      uploadSign(blob,s,s.manager,tStr()).then(function(){
         alert('✓ 사인이 구글 드라이브에 저장됐어요!');
       }).catch(function(e){
         alert('드라이브 저장 실패: '+e.message);
