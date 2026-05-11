@@ -134,6 +134,8 @@ canvas{display:block;width:100%;height:170px;}
 .confirm-pop{background:var(--bg);border-radius:12px;padding:20px;width:300px;max-width:90vw;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
 .confirm-btns{display:flex;gap:8px;margin-top:14px;}
 .date-edit-pop{background:var(--bg);border-radius:12px;padding:20px;width:340px;max-width:95vw;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
+.sign-rotated{position:fixed!important;inset:0!important;background:var(--bg)!important;border-radius:0!important;width:100vw!important;max-width:100vw!important;max-height:100vh!important;display:flex!important;flex-direction:column!important;justify-content:center!important;}
+.sign-rotated canvas{height:50vw!important;width:90vw!important;}
 /* 구글 로그인 */
 .login-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--sf);border-bottom:1px solid var(--bd);}
 .login-status{font-size:12px;color:var(--txm);}
@@ -351,8 +353,13 @@ canvas{display:block;width:100%;height:170px;}
 
 <!-- 사인 팝업 -->
 <div class="ov" id="ov-sign">
-  <div class="pop">
-    <div class="pop-title"><span>✍️ 담당자 사인</span><button class="pop-x" onclick="cp('ov-sign')">×</button></div>
+  <div class="pop" id="sign-pop" style="width:370px;max-width:95vw;">
+    <div class="pop-title"><span>✍️ 담당자 사인</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="tb" onclick="rotateSigner()" style="font-size:10px;" id="rotate-btn">📱 가로로 보기</button>
+        <button class="pop-x" onclick="cp('ov-sign');exitRotate()">×</button>
+      </div>
+    </div>
     <div style="font-size:11px;color:var(--txm);margin-bottom:9px;" id="sign-sub"></div>
     <div class="sign-wrap"><canvas id="sign-cv" width="300" height="170"></canvas></div>
     <div class="sign-acts">
@@ -367,15 +374,15 @@ canvas{display:block;width:100%;height:170px;}
   <div class="pop" style="width:520px;max-height:92vh;">
     <div class="pop-title"><span id="add-title">새 현장 추가</span><button class="pop-x" onclick="cp('ov-add')">×</button></div>
     <div class="frm">
-      <div class="fg"><div class="fl">공사명 *</div><input type="text" class="fi" id="n_nm"></div>
+      <div class="fg"><div class="fl">공사명 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_nm" oninput="chkRequired()"></div>
       <div class="fc2">
-        <div class="fg"><div class="fl">업체명</div><input type="text" class="fi" id="n_co"></div>
+        <div class="fg"><div class="fl">업체명 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_co" oninput="chkRequired()"></div>
         <div class="fg"><div class="fl">발주기관</div><input type="text" class="fi" id="n_cl"></div>
       </div>
       <div class="fg"><div class="fl">현장 주소</div><input type="text" class="fi" id="n_ad"></div>
       <div class="fc2">
         <div class="fg"><div class="fl">계약금액</div><input type="text" class="fi" id="n_am" oninput="fmtAmt(this)" placeholder="예: 45,000,000"></div>
-        <div class="fg"><div class="fl">총 지도횟수</div><input type="number" class="fi" id="n_tot" min="1"></div>
+        <div class="fg"><div class="fl">총 지도횟수 <span style="color:#dc2626;">*</span></div><input type="number" class="fi" id="n_tot" min="1" oninput="chkRequired()"></div>
       </div>
       <div class="fc2">
         <div class="fg"><div class="fl">완료 지도횟수 <span style="color:var(--txm);font-size:9px;">(이미 완료한 횟수)</span></div><input type="number" class="fi" id="n_done" min="0" placeholder="0"></div>
@@ -384,15 +391,15 @@ canvas{display:block;width:100%;height:170px;}
       <div class="fc3">
         <div class="fg"><div class="fl">계약일</div><input type="date" class="fi" id="n_ct"></div>
         <div class="fg"><div class="fl">착공일</div><input type="date" class="fi" id="n_st"></div>
-        <div class="fg"><div class="fl">준공일</div><input type="date" class="fi" id="n_en"></div>
+        <div class="fg"><div class="fl">준공일 <span style="color:#dc2626;">*</span></div><input type="date" class="fi" id="n_en" onchange="chkRequired()"></div>
       </div>
       <div class="fc2">
-        <div class="fg"><div class="fl">담당자</div><input type="text" class="fi" id="n_mg"></div>
-        <div class="fg"><div class="fl">핸드폰번호</div><input type="text" class="fi" id="n_ph"></div>
+        <div class="fg"><div class="fl">담당자 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_mg" oninput="chkRequired()"></div>
+        <div class="fg"><div class="fl">핸드폰번호 <span style="color:#dc2626;">*</span></div><input type="text" class="fi" id="n_ph" oninput="chkRequired()"></div>
       </div>
       <div class="fg"><div class="fl">이메일</div><input type="text" class="fi" id="n_em"></div>
       <div class="fg"><div class="fl">비고</div><input type="text" class="fi" id="n_nt"></div>
-      <button class="btn-p" id="add-sub" onclick="subSite()" style="padding:9px;width:100%;border-radius:7px;font-size:13px;">현장 추가</button>
+      <button class="btn-p" id="add-sub" onclick="subSite()" style="padding:9px;width:100%;border-radius:7px;font-size:13px;opacity:0.4;cursor:not-allowed;" disabled>현장 추가</button>
     </div>
   </div>
 </div>
@@ -576,31 +583,57 @@ async function driveUploadFile(file,folderId,fileName){
   return data;
 }
 
+// 기술지도관련 루트 폴더 ID 캐시
+var rootFolderId=null;
+
+async function getRootFolder(){
+  if(rootFolderId)return rootFolderId;
+  // 먼저 기존 폴더 검색
+  var existing=await driveFindFolder('기술지도관련',null);
+  if(existing){
+    rootFolderId=existing;
+  } else {
+    rootFolderId=await driveCreateFolder('기술지도관련',null);
+  }
+  return rootFolderId;
+}
+
 // 현장 폴더 생성 (현장 추가시 자동)
 async function createSiteFolder(siteName){
   if(!accessToken)return;
-  await driveGetOrCreateFolder(siteName,null);
+  var root=await getRootFolder();
+  await driveGetOrCreateFolder(siteName,root);
 }
 
 // 사진 업로드
 async function uploadPhotos(files,siteName,dateStr,isUnscheduled){
-  if(!accessToken){
-    return;
-  }
-  var siteFolder=await driveGetOrCreateFolder(siteName,null);
-  var folderName=isUnscheduled?'(미실시)'+dateStr:dateStr;
-  var dateFolder=await driveGetOrCreateFolder(folderName,siteFolder);
-  for(var i=0;i<files.length;i++){
-    await driveUploadFile(files[i],dateFolder,null);
+  if(!accessToken){console.warn('업로드 실패: 로그인 필요');return;}
+  try{
+    var root=await getRootFolder();
+    var siteFolder=await driveGetOrCreateFolder(siteName,root);
+    var folderName=isUnscheduled?'(미실시)'+dateStr:dateStr;
+    var dateFolder=await driveGetOrCreateFolder(folderName,siteFolder);
+    for(var i=0;i<files.length;i++){
+      await driveUploadFile(files[i],dateFolder,null);
+    }
+  }catch(e){
+    console.error('사진 업로드 오류:',e);
+    throw e;
   }
 }
 
 // 사인 업로드
 async function uploadSign(blob,siteName,managerName,dateStr){
-  if(!accessToken)return;
-  var siteFolder=await driveGetOrCreateFolder(siteName,null);
-  var fileName=managerName+'_사인_'+dateStr+'.png';
-  await driveUploadFile(blob,siteFolder,fileName);
+  if(!accessToken){console.warn('사인 업로드 실패: 로그인 필요');return;}
+  try{
+    var root=await getRootFolder();
+    var siteFolder=await driveGetOrCreateFolder(siteName,root);
+    var fileName=managerName+'_사인_'+dateStr+'.png';
+    await driveUploadFile(blob,siteFolder,fileName);
+  }catch(e){
+    console.error('사인 업로드 오류:',e);
+    throw e;
+  }
 }
 
 // ===== 사진 업로드 핸들러 =====
@@ -917,6 +950,8 @@ function oAdd(){
   ['n_nm','n_co','n_cl','n_ad','n_am','n_mg','n_ph','n_em','n_nt','n_ct','n_st','n_en'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('n_tot').value='';
   document.getElementById('n_done').value='';
+  var btn=document.getElementById('add-sub');
+  btn.disabled=true;btn.style.opacity='0.4';btn.style.cursor='not-allowed';
   document.getElementById('add-title').textContent='새 현장 추가';
   document.getElementById('add-sub').textContent='현장 추가';
   document.getElementById('ov-add').classList.add('open');
@@ -933,6 +968,8 @@ function oEdit(sid){
   document.getElementById('n_nt').value=s.note||'';
   document.getElementById('add-title').textContent='현장 수정';
   document.getElementById('add-sub').textContent='저장';
+  var btn=document.getElementById('add-sub');
+  btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';
   document.getElementById('ov-add').classList.add('open');
 }
 function subSite(){
@@ -1039,6 +1076,47 @@ function getSorted(){
   return early.concat(needReport).concat(normal).concat(rptDone).concat(stopped);
 }
 function toggleRpt(sid,v){gS(sid).rpt=v;saveData();renderST();}
+function chkRequired(){
+  var nm=document.getElementById('n_nm').value.trim();
+  var co=document.getElementById('n_co').value.trim();
+  var tot=document.getElementById('n_tot').value;
+  var en=document.getElementById('n_en').value;
+  var mg=document.getElementById('n_mg').value.trim();
+  var ph=document.getElementById('n_ph').value.trim();
+  var ok=nm&&co&&tot&&en&&mg&&ph;
+  var btn=document.getElementById('add-sub');
+  if(ok){
+    btn.disabled=false;
+    btn.style.opacity='1';
+    btn.style.cursor='pointer';
+  } else {
+    btn.disabled=true;
+    btn.style.opacity='0.4';
+    btn.style.cursor='not-allowed';
+  }
+}
+
+var isRotated=false;
+function rotateSigner(){
+  var pop=document.getElementById('sign-pop');
+  isRotated=!isRotated;
+  if(isRotated){
+    pop.classList.add('sign-rotated');
+    document.getElementById('rotate-btn').textContent='📱 세로로 보기';
+  } else {
+    pop.classList.remove('sign-rotated');
+    document.getElementById('rotate-btn').textContent='📱 가로로 보기';
+  }
+  setTimeout(initSC,100);
+}
+function exitRotate(){
+  var pop=document.getElementById('sign-pop');
+  pop.classList.remove('sign-rotated');
+  isRotated=false;
+  if(document.getElementById('rotate-btn'))
+    document.getElementById('rotate-btn').textContent='📱 가로로 보기';
+}
+
 function fmtAmt(el){
   var v=el.value.replace(/[^0-9]/g,'');
   if(v)el.value=parseInt(v).toLocaleString('ko-KR');
