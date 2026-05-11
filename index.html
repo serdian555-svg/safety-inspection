@@ -1266,6 +1266,37 @@ function importExcel(){
   document.getElementById('excel-input').click();
 }
 
+// 날짜 문자열 → YYYY-MM-DD 변환
+function parseDate(val){
+  if(!val)return '';
+  var s=val.toString().trim();
+  // 엑셀 숫자 날짜 처리
+  if(!isNaN(s)&&s.length>4){
+    var d=new Date(Math.round((parseFloat(s)-25569)*86400*1000));
+    var y=d.getUTCFullYear(),m=d.getUTCMonth()+1,dd=d.getUTCDate();
+    return y+'-'+String(m).padStart(2,'0')+'-'+String(dd).padStart(2,'0');
+  }
+  // 구분자를 -로 통일 (., /, 공백 등)
+  s=s.replace(/[./\s]/g,'-');
+  // 연도 2자리 처리 (26-05-04 → 2026-05-04)
+  var parts=s.split('-').filter(function(p){return p.length>0;});
+  if(parts.length===3){
+    var y=parts[0],m=parts[1],d=parts[2];
+    if(y.length===2)y='20'+y;
+    // 월/일이 1자리면 패딩
+    m=m.padStart(2,'0');
+    d=d.padStart(2,'0');
+    return y+'-'+m+'-'+d;
+  }
+  return s;
+}
+
+// 금액 문자열 → 숫자만 추출
+function parseAmount(val){
+  if(!val)return '';
+  return val.toString().replace(/[,\s원]/g,'').trim();
+}
+
 function handleExcelImport(input){
   if(!input.files||!input.files.length)return;
   var file=input.files[0];
@@ -1275,12 +1306,11 @@ function handleExcelImport(input){
       var data=new Uint8Array(e.target.result);
       var wb=XLSX.read(data,{type:'array'});
       var ws=wb.Sheets[wb.SheetNames[0]];
-      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
       var added=0;
       rows.forEach(function(row){
         var nm=(row['공사명']||'').toString().trim();
         if(!nm)return;
-        // 이미 있는 현장 스킵
         var exists=sites.some(function(s){return s.name===nm;});
         if(exists)return;
         var total=parseInt(row['총지도횟수']||row['총 지도횟수']||0);
@@ -1292,16 +1322,16 @@ function handleExcelImport(input){
           company:(row['업체명']||'').toString().trim(),
           client:(row['발주기관']||'').toString().trim(),
           address:(row['주소']||'').toString().trim(),
-          amount:(row['계약금액']||'').toString().replace(/,/g,'').trim(),
+          amount:parseAmount(row['계약금액']),
           total:total,
           done:done,
           manager:(row['담당자']||'').toString().trim(),
           phone:(row['연락처']||'').toString().trim(),
           email:(row['이메일']||'').toString().trim(),
           note:(row['비고']||'').toString().trim(),
-          contract:(row['계약일']||'').toString().trim(),
-          start:(row['착공일']||'').toString().trim(),
-          end:(row['준공일']||'').toString().trim(),
+          contract:parseDate(row['계약일']),
+          start:parseDate(row['착공일']),
+          end:parseDate(row['준공일']),
           origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false
         });
         added++;
