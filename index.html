@@ -180,7 +180,7 @@ canvas{display:block;width:100%;height:170px;}
     <div style="font-size:24px;margin-bottom:8px;">⚠️</div>
     <div style="font-size:15px;font-weight:500;margin-bottom:10px;">준공일 임박 현장 알림</div>
     <div id="alp-list"></div>
-    <button class="alp-cf" onclick="document.getElementById('alp-ov').style.display='none'">확인했습니다</button>
+    <button class="alp-cf" onclick="document.getElementById('alp-ov').style.display='none';localStorage.setItem('alp_closed',getAlpSlot());">확인했습니다</button>
   </div>
 </div>
 
@@ -795,10 +795,21 @@ function renderAB(){
   el.innerHTML='<span style="font-size:11px;font-weight:500;color:#92400e;margin-right:4px;">⚠️ 준공 임박</span>'+
     al.map(function(a){return'<span class="alert-tag">'+tr(a.site.name,8)+' D-'+a.diff+'</span>';}).join('');
 }
+function getAlpSlot(){
+  var h=new Date().getHours();
+  var today=new Date().toDateString();
+  // 09:00~18:00 = 슬롯A, 나머지 = 슬롯B
+  var slot=today+'_'+(h>=9&&h<18?'A':'B');
+  return slot;
+}
+
 function showALP(){
   var isMobile=/Mobi|Android/i.test(navigator.userAgent);
   if(isMobile)return;
   var al=getAl();if(!al.length)return;
+  // 이미 이 슬롯에서 팝업 닫은 경우 표시 안함
+  var slot=getAlpSlot();
+  if(localStorage.getItem('alp_closed')===slot)return;
   document.getElementById('alp-list').innerHTML=al.map(function(a){
     return'<div class="alp-item '+(a.diff<=1?'urg':'wrn')+'"><span>'+(a.diff<=1?'🔴':'🟡')+'</span><div><div style="font-weight:500;">'+a.site.name+'</div><div style="font-size:10px;margin-top:1px;">준공일 D-'+a.diff+' · '+a.site.end+'</div></div></div>';
   }).join('');
