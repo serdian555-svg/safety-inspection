@@ -1068,7 +1068,7 @@ function oSign(sid){
 function initSC(){
   var cv=document.getElementById('sign-cv');
   cv.width=cv.parentElement.clientWidth||300;cv.height=170;
-  sCtx=cv.getContext('2d');sCtx.strokeStyle='#111';sCtx.lineWidth=2.2;sCtx.lineCap='round';sCtx.clearRect(0,0,cv.width,cv.height);
+  sCtx=cv.getContext('2d');sCtx.strokeStyle='#000000';sCtx.lineWidth=2.5;sCtx.lineCap='round';sCtx.clearRect(0,0,cv.width,cv.height);
   function gP(e,c){var r=c.getBoundingClientRect();return[(e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height)];}
   cv.onmousedown=function(e){drawing=true;var p=gP(e,cv);lx=p[0];ly=p[1];};
   cv.onmousemove=function(e){if(!drawing)return;var p=gP(e,cv);sCtx.beginPath();sCtx.moveTo(lx,ly);sCtx.lineTo(p[0],p[1]);sCtx.stroke();lx=p[0];ly=p[1];};
@@ -1270,7 +1270,7 @@ function openLandscapeSign(){
     cv.width=window.innerWidth;
     cv.height=window.innerHeight-60;
     landCtx=cv.getContext('2d');
-    landCtx.strokeStyle='#111';landCtx.lineWidth=2.5;landCtx.lineCap='round';
+    landCtx.strokeStyle='#000000';landCtx.lineWidth=2.5;landCtx.lineCap='round';
     landCtx.clearRect(0,0,cv.width,cv.height);
     function gP(e,c){var r=c.getBoundingClientRect();return[(e.clientX-r.left),(e.clientY-r.top)];}
     cv.onmousedown=function(e){landDrawing=true;var p=gP(e,cv);landLx=p[0];landLy=p[1];};
