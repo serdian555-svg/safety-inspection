@@ -1085,14 +1085,12 @@ function moveSlot(y,m,d){
   var found=false;
   for(var i=0;i<sch[nk].length;i++){if(sch[nk][i].siteId===entry.siteId){found=true;break;}}
   if(found)return;
-  var s=gS(entry.siteId);
-  if(entry.visited&&s&&s.done>0)s.done--;
-  entry.visited=false;entry.vOrder=null;
+  // 방문체크 상태 그대로 유지하고 날짜만 이동
   sch[nk].push(entry);
   sch[selDate].splice(selIdx,1);
   if(sch[selDate].length===0)delete sch[selDate];
   document.getElementById('ov-act').classList.remove('open');
-  saveData();renderCal();renderAB();
+  saveData();renderCal();renderAB();renderST();
 }
 
 function tvAct(){
@@ -1481,12 +1479,14 @@ function renderST(){
     var rc=s.early?'early':s.stopped?'stopped':s.rpt?'rpt-done':'';
     var nmStyle=s.early?'color:#dc2626;font-weight:500;':s.stopped?'color:#9ca3af;':'font-weight:500;';
     var cv=getCMV(s.id);
-    var ci=cv.length?'<div style="font-size:9px;color:var(--pr);margin-top:1px;">이번달 '+cv.length+'회 · '+cv.join(', ')+'</div>':'';
+    var cv2=getCMV(s.id);
+    var ci=cv2.length?'<div style="font-size:9px;color:var(--pr);margin-top:1px;">이번달 '+cv2.length+'회 · '+cv2.join(', ')+'</div>':'';
+    var compLink=(s.done>=s.total&&s.total>0)?'<div style="font-size:10px;margin-top:2px;"><span style="color:#10b981;cursor:pointer;text-decoration:underline;" onclick="doCompMoveById('+s.id+')">→ 완료현장으로 이동</span></div>':'';
     var sb=s.stopHist&&!s.stopped?'<span class="bdg bdg-stop" style="margin-left:3px;">정지이력</span>':'';
     var hasVisit=hasUnreportedVisit(s.id);
     var rptBorder=(!s.rpt&&hasVisit)?'outline:2px solid #dc2626;outline-offset:1px;border-radius:3px;':'';
     return'<tr class="'+rc+'">'+
-      '<td><span class="sn" style="'+nmStyle+'cursor:pointer;text-decoration:underline;" onclick="oHist('+s.id+')">'+s.name+'</span>'+sb+ci+'</td>'+
+      '<td><span class="sn" style="'+nmStyle+'cursor:pointer;text-decoration:underline;" onclick="oHist('+s.id+')">'+s.name+'</span>'+sb+ci+compLink+'</td>'+
       (function(){
       var total=0;
       Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
@@ -1687,10 +1687,22 @@ function renderComp(){
         rows.map(function(r){var s=r.site;var lm=r.lv?parseInt(r.lv.split('-')[1])+'/'+parseInt(r.lv.split('-')[2]):'';
           return'<div class="comp-site-row"><div style="flex:1;min-width:0;"><div class="comp-site-name '+(!s.submitted?'unsub':'')+'" style="cursor:pointer;text-decoration:underline;" onclick="oCompDetail('+s.id+')">'+s.name+'</div>'+
             '<div style="font-size:10px;color:var(--txm);margin-top:1px;">'+s.manager+' · 마지막 방문: '+(lm||'-')+'</div></div>'+
-            '<button class="tb '+(s.submitted?'tb-subbed':'tb-sub')+'" onclick="togSub('+s.id+')">'+(s.submitted?'제출완료':'서류제출')+'</button></div>';
+            '<div style="display:flex;gap:4px;">'+
+            '<button class="tb '+(s.submitted?'tb-subbed':'tb-sub')+'" onclick="togSub('+s.id+')">'+(s.submitted?'제출완료':'서류제출')+'</button>'+
+            '<button class="tb tb-e" onclick="revertToActive('+s.id+')">수정</button>'+
+            '</div></div>';
         }).join('')+'</div></div>';
   }).join('');
 }
+function revertToActive(sid){
+  var s=gS(sid);if(!s)return;
+  if(s.done>0)s.done--;
+  s.rpt=false;
+  s.rptCount=s.rptCount>0?s.rptCount-1:0;
+  saveData();renderST();renderComp();
+  sw('sites');
+}
+
 function togM(key){var el=document.getElementById('cm-'+key);var arr=document.getElementById('arr-'+key);var exp=el.style.display==='none';el.style.display=exp?'block':'none';if(arr)arr.textContent=exp?'▲':'▼';cExp[key]=exp;}
 function togSub(sid){var s=gS(sid);s.submitted=!s.submitted;saveData();renderComp();}
 function oCompDetail(sid){
