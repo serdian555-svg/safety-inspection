@@ -272,6 +272,20 @@ canvas{display:block;width:100%;height:170px;}
 </div>
 
 <!-- 완료현장 시트 -->
+<!-- 현장관리로 되돌리기 확인 팝업 -->
+<div class="ov" id="ov-revert">
+  <div class="confirm-pop">
+    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">현장관리로 되돌리기</div>
+    <div style="font-size:13px;font-weight:500;color:var(--pr);margin-bottom:6px;" id="revert-site-name"></div>
+    <div style="font-size:12px;color:var(--txm);margin-bottom:12px;">현장관리 시트로 되돌릴까요?</div>
+    <input type="hidden" id="revert-site-id">
+    <div class="confirm-btns">
+      <button class="btn-o" style="flex:1;" onclick="cp('ov-revert')">취소</button>
+      <button class="btn-p" style="flex:1;" onclick="doRevert()">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- 완료현장 상세 팝업 -->
 <div class="ov" id="ov-comp-detail">
   <div class="pop" style="width:420px;max-width:95vw;">
@@ -1689,16 +1703,24 @@ function renderComp(){
             '<div style="font-size:10px;color:var(--txm);margin-top:1px;">'+s.manager+' · 마지막 방문: '+(lm||'-')+'</div></div>'+
             '<div style="display:flex;gap:4px;">'+
             '<button class="tb '+(s.submitted?'tb-subbed':'tb-sub')+'" onclick="togSub('+s.id+')">'+(s.submitted?'제출완료':'서류제출')+'</button>'+
-            '<button class="tb tb-e" onclick="revertToActive('+s.id+')">수정</button>'+
+            '<button class="tb" style="border-color:#f59e0b;background:#fff8e1;color:#92400e;" onclick="revertToActive('+s.id+')">되돌리기</button>'+
             '</div></div>';
         }).join('')+'</div></div>';
   }).join('');
 }
 function revertToActive(sid){
   var s=gS(sid);if(!s)return;
-  if(s.done>0)s.done--;
-  s.rpt=false;
+  document.getElementById('revert-site-name').textContent=s.name;
+  document.getElementById('revert-site-id').value=sid;
+  document.getElementById('ov-revert').classList.add('open');
+}
+function doRevert(){
+  var sid=parseInt(document.getElementById('revert-site-id').value);
+  var s=gS(sid);if(!s)return;
+  // 지도횟수는 그대로, 보고서만 1회 미작성으로
   s.rptCount=s.rptCount>0?s.rptCount-1:0;
+  s.rpt=false;
+  cp('ov-revert');
   saveData();renderST();renderComp();
   sw('sites');
 }
