@@ -272,6 +272,14 @@ canvas{display:block;width:100%;height:170px;}
 </div>
 
 <!-- 완료현장 시트 -->
+<!-- 완료현장 상세 팝업 -->
+<div class="ov" id="ov-comp-detail">
+  <div class="pop" style="width:420px;max-width:95vw;">
+    <div class="pop-title"><span>공사 상세정보</span><button class="pop-x" onclick="cp('ov-comp-detail')">×</button></div>
+    <div id="comp-detail-body"></div>
+  </div>
+</div>
+
 <div class="sheet" id="sh-comp">
   <div style="font-size:15px;font-weight:500;margin-bottom:10px;">완료 현장</div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;" id="comp-yr-btns"></div>
@@ -283,6 +291,20 @@ canvas{display:block;width:100%;height:170px;}
 </div>
 
 <!-- 날짜 팝업 1단계 -->
+<!-- 완료현장 이동 확인 팝업 -->
+<div class="ov" id="ov-comp-move">
+  <div class="confirm-pop">
+    <div style="font-size:14px;font-weight:500;margin-bottom:8px;">완료된 사업입니다</div>
+    <div style="font-size:12px;color:var(--txm);margin-bottom:4px;" id="comp-move-name"></div>
+    <div style="font-size:12px;color:var(--txm);margin-bottom:12px;">완료현장 시트로 옮길까요?</div>
+    <input type="hidden" id="comp-move-id">
+    <div class="confirm-btns">
+      <button class="btn-o" style="flex:1;" onclick="cp('ov-comp-move')">나중에</button>
+      <button class="btn-p" style="flex:1;" onclick="doCompMove()">완료현장으로</button>
+    </div>
+  </div>
+</div>
+
 <!-- 현장 삭제 확인 팝업 -->
 <div class="ov" id="ov-del-site">
   <div class="confirm-pop">
@@ -465,6 +487,22 @@ canvas{display:block;width:100%;height:170px;}
     <div class="pop-title"><span id="hist-title">방문 이력</span><button class="pop-x" onclick="cp('ov-hist')">×</button></div>
     <div style="font-size:11px;color:var(--txm);margin-bottom:10px;">날짜를 클릭하면 수정할 수 있어요</div>
     <div id="hist-body"></div>
+  </div>
+</div>
+
+<!-- 방문날짜 추가 팝업 -->
+<div class="ov" id="ov-add-visit">
+  <div class="date-edit-pop">
+    <div class="pop-title">
+      <span>방문 날짜 추가</span>
+      <button class="pop-x" onclick="cp('ov-add-visit');document.getElementById('ov-hist').classList.add('open');">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--txm);margin-bottom:12px;">추가할 방문 날짜를 선택해주세요</div>
+    <div class="fg" style="margin-bottom:14px;">
+      <div class="fl">방문 날짜</div>
+      <input type="date" class="fi" id="add-visit-input">
+    </div>
+    <button class="btn-p" onclick="doAddVisit()" style="width:100%;padding:9px;border-radius:7px;font-size:13px;">추가</button>
   </div>
 </div>
 
@@ -777,6 +815,38 @@ function hasUnreportedVisit(sid){
     }
   }
   return false;
+}
+function getUnreportedCount(sid){
+  var s=gS(sid);if(!s)return 0;
+  var total=0;
+  Object.keys(sch).forEach(function(k){
+    sch[k].forEach(function(e){if(e.siteId===sid&&e.visited)total++;});
+  });
+  // 완료된 보고서 수 = s.rptCount (별도 저장)
+  var done=s.rptCount||0;
+  var remaining=total-done;
+  return remaining<0?0:remaining;
+}
+function clickRptBtn(sid){
+  var s=gS(sid);if(!s)return;
+  if(!s.rptCount)s.rptCount=0;
+  var total=0;
+  Object.keys(sch).forEach(function(k){
+    sch[k].forEach(function(e){if(e.siteId===sid&&e.visited)total++;});
+  });
+  if(s.rptCount<total){
+    s.rptCount++;
+    // 다 작성했으면 완료현장 이동 확인
+    if(s.rptCount>=total&&s.done>=s.total){
+      saveData();renderST();
+      document.getElementById('comp-move-name').textContent=s.name;
+      document.getElementById('comp-move-id').value=sid;
+      document.getElementById('ov-comp-move').classList.add('open');
+      return;
+    }
+  }
+  s.rpt=(s.rptCount>=(total));
+  saveData();renderST();
 }
 
 // ===== 알림 =====
@@ -1184,23 +1254,62 @@ function tStop(sid){var s=gS(sid);if(!s.stopped){s.stopped=true;s.stopHist=true;
 
 function oHist(sid){
   var s=gS(sid);var vis={};
+  var allKeys=[];
   Object.keys(sch).forEach(function(k){
     sch[k].forEach(function(e){
       if(e.siteId===sid&&e.visited){
         var p=k.split('-');var mk=p[0]+'년 '+parseInt(p[1])+'월';
         if(!vis[mk])vis[mk]=[];
         vis[mk].push({label:parseInt(p[1])+'/'+parseInt(p[2]),key:k});
+        allKeys.push(k);
       }
     });
   });
+  // 월별 키 최근순 정렬
+  var mkKeys=Object.keys(vis).sort(function(a,b){
+    var ay=parseInt(a.split('년')[0]),am=parseInt(a.split('년 ')[1]);
+    var by2=parseInt(b.split('년')[0]),bm=parseInt(b.split('년 ')[1]);
+    if(ay!==by2)return by2-ay;
+    return bm-am;
+  });
+  // 각 월 안에서도 최근날짜 왼쪽
+  mkKeys.forEach(function(mk){
+    vis[mk].sort(function(a,b){return b.key.localeCompare(a.key);});
+  });
   document.getElementById('hist-title').textContent=s.name+' 방문 이력';
-  var el=document.getElementById('hist-body');var ks=Object.keys(vis);
-  el.innerHTML=ks.length?ks.map(function(mk){
+  var el=document.getElementById('hist-body');
+  var addBtn='<div style="margin-bottom:10px;"><button class="tb" onclick="openAddVisit('+sid+')" style="border-color:var(--pr);color:var(--pr);font-size:11px;padding:4px 10px;">+ 날짜 추가</button></div>';
+  el.innerHTML=addBtn+(mkKeys.length?mkKeys.map(function(mk){
     return'<div class="hist-month"><div class="hist-mt">'+mk+' · 총 '+vis[mk].length+'회</div><div class="hist-dates">'+
       vis[mk].map(function(item){return'<span class="hist-tag" onclick="openDateEdit('+sid+',\''+item.key+'\')">'+item.label+' ✏️</span>';}).join('')+
       '</div></div>';
-  }).join(''):'<div style="color:var(--txm);font-size:12px;padding:6px 0;">방문 이력이 없습니다.</div>';
+  }).join(''):'<div style="color:var(--txm);font-size:12px;padding:6px 0;">방문 이력이 없습니다.</div>');
   document.getElementById('ov-hist').classList.add('open');
+}
+
+// 날짜 추가 기능
+var addVisitSiteId=null;
+function openAddVisit(sid){
+  addVisitSiteId=sid;
+  document.getElementById('add-visit-input').value=tStr();
+  document.getElementById('ov-hist').classList.remove('open');
+  document.getElementById('ov-add-visit').classList.add('open');
+}
+function doAddVisit(){
+  var newKey=document.getElementById('add-visit-input').value;
+  if(!newKey){cp('ov-add-visit');document.getElementById('ov-hist').classList.add('open');return;}
+  if(!sch[newKey])sch[newKey]=[];
+  var found=false;
+  for(var i=0;i<sch[newKey].length;i++){if(sch[newKey][i].siteId===addVisitSiteId){found=true;sch[newKey][i].visited=true;sch[newKey][i].vOrder=Date.now();break;}}
+  if(!found){
+    if(sch[newKey].length>=8){cp('ov-add-visit');document.getElementById('ov-hist').classList.add('open');return;}
+    sch[newKey].push({siteId:addVisitSiteId,visited:true,vOrder:Date.now()});
+  }
+  var s=gS(addVisitSiteId);
+  if(s&&s.done<s.total)s.done++;
+  cp('ov-add-visit');
+  saveData();renderCal();renderAB();renderST();
+  oHist(addVisitSiteId);
 }
 
 function openDateEdit(sid,oldKey){
@@ -1234,16 +1343,23 @@ function doDateEdit(){
 
 function getCMV(sid){
   var today=new Date();var ym=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');var dates=[];
-  Object.keys(sch).forEach(function(k){if(k.indexOf(ym)===0){sch[k].forEach(function(e){if(e.siteId===sid&&e.visited)dates.push((today.getMonth()+1)+'/'+parseInt(k.split('-')[2]));});}});
-  return dates;
+  Object.keys(sch).forEach(function(k){if(k.indexOf(ym)===0){sch[k].forEach(function(e){if(e.siteId===sid&&e.visited)dates.push({label:(today.getMonth()+1)+'/'+parseInt(k.split('-')[2]),key:k});});}});
+  dates.sort(function(a,b){return b.key.localeCompare(a.key);}); // 최근날짜 왼쪽
+  return dates.map(function(d){return d.label;});
+}
+function sortByContract(arr){
+  return arr.slice().sort(function(a,b){
+    var da=a.contract||'0000-00-00';
+    var db=b.contract||'0000-00-00';
+    return db.localeCompare(da);
+  });
 }
 function getSorted(){
-  var early=sites.filter(function(s){return s.early&&!s.stopped&&s.done<s.total;});
-  // 보고서 미작성 + 방문기록 있는 현장 맨 위
-  var needReport=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&hasUnreportedVisit(s.id);});
-  var normal=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&!hasUnreportedVisit(s.id);});
-  var rptDone=sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&s.rpt;});
-  var stopped=sites.filter(function(s){return s.stopped;});
+  var early=sortByContract(sites.filter(function(s){return s.early&&!s.stopped&&s.done<s.total;}));
+  var needReport=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&hasUnreportedVisit(s.id);}));
+  var normal=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&!hasUnreportedVisit(s.id);}));
+  var rptDone=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&s.rpt;}));
+  var stopped=sortByContract(sites.filter(function(s){return s.stopped;}));
   return early.concat(needReport).concat(normal).concat(rptDone).concat(stopped);
 }
 function toggleRpt(sid,v){gS(sid).rpt=v;saveData();renderST();}
@@ -1371,9 +1487,17 @@ function renderST(){
     var rptBorder=(!s.rpt&&hasVisit)?'outline:2px solid #dc2626;outline-offset:1px;border-radius:3px;':'';
     return'<tr class="'+rc+'">'+
       '<td><span class="sn" style="'+nmStyle+'cursor:pointer;text-decoration:underline;" onclick="oHist('+s.id+')">'+s.name+'</span>'+sb+ci+'</td>'+
-      '<td style="text-align:center;"><input type="checkbox" '+(s.rpt?'checked':'')+' onchange="toggleRpt('+s.id+',this.checked)" style="width:15px;height:15px;cursor:pointer;'+rptBorder+'"></td>'+
+      (function(){
+      var total=0;
+      Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
+      var done=s.rptCount||0;
+      var remaining=total-done;if(remaining<0)remaining=0;
+      if(total===0)return'<td style="text-align:center;"><span style="color:var(--txm);font-size:11px;">-</span></td>';
+      if(remaining===0)return'<td style="text-align:center;"><button onclick="clickRptBtn('+s.id+')" style="width:28px;height:28px;border-radius:50%;border:2px solid #10b981;background:#ecfdf5;color:#065f46;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">✓</button></td>';
+      return'<td style="text-align:center;"><button onclick="clickRptBtn('+s.id+')" style="width:28px;height:28px;border-radius:50%;border:2px solid #dc2626;background:#fff5f5;color:#dc2626;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">'+remaining+'</button></td>';
+    })()+
       '<td>'+(s.company||'-')+'</td><td>'+(s.client||'-')+'</td>'+
-      '<td style="white-space:nowrap;">'+(s.amount?s.amount+'원':'-')+'</td>'+
+      '<td style="white-space:nowrap;">'+(s.amount?parseInt(s.amount.replace(/,/g,'')||0).toLocaleString('ko-KR')+'원':'-')+'</td>'+
       '<td style="white-space:nowrap;">'+(s.contract||'-')+'</td>'+
       '<td style="white-space:nowrap;">'+(s.start||'-')+'</td>'+
       '<td style="white-space:nowrap;">'+endCell+'</td>'+
@@ -1561,7 +1685,7 @@ function renderComp(){
       '</div>'+
       '<div id="cm-'+key+'" style="display:'+(exp?'block':'none')+';">'+
         rows.map(function(r){var s=r.site;var lm=r.lv?parseInt(r.lv.split('-')[1])+'/'+parseInt(r.lv.split('-')[2]):'';
-          return'<div class="comp-site-row"><div style="flex:1;min-width:0;"><div class="comp-site-name '+(!s.submitted?'unsub':'')+'">'+s.name+'</div>'+
+          return'<div class="comp-site-row"><div style="flex:1;min-width:0;"><div class="comp-site-name '+(!s.submitted?'unsub':'')+'" style="cursor:pointer;text-decoration:underline;" onclick="oCompDetail('+s.id+')">'+s.name+'</div>'+
             '<div style="font-size:10px;color:var(--txm);margin-top:1px;">'+s.manager+' · 마지막 방문: '+(lm||'-')+'</div></div>'+
             '<button class="tb '+(s.submitted?'tb-subbed':'tb-sub')+'" onclick="togSub('+s.id+')">'+(s.submitted?'제출완료':'서류제출')+'</button></div>';
         }).join('')+'</div></div>';
@@ -1569,6 +1693,51 @@ function renderComp(){
 }
 function togM(key){var el=document.getElementById('cm-'+key);var arr=document.getElementById('arr-'+key);var exp=el.style.display==='none';el.style.display=exp?'block':'none';if(arr)arr.textContent=exp?'▲':'▼';cExp[key]=exp;}
 function togSub(sid){var s=gS(sid);s.submitted=!s.submitted;saveData();renderComp();}
+function oCompDetail(sid){
+  var s=gS(sid);if(!s)return;
+  var lv=getLV(sid);
+  var vis={};
+  Object.keys(sch).forEach(function(k){
+    sch[k].forEach(function(e){
+      if(e.siteId===sid&&e.visited){
+        var p=k.split('-');var mk=p[0]+'년 '+parseInt(p[1])+'월';
+        if(!vis[mk])vis[mk]=[];
+        vis[mk].push(parseInt(p[1])+'/'+parseInt(p[2]));
+      }
+    });
+  });
+  var mkKeys=Object.keys(vis).sort(function(a,b){
+    var ay=parseInt(a.split('년')[0]),am=parseInt(a.split('년 ')[1]);
+    var by2=parseInt(b.split('년')[0]),bm=parseInt(b.split('년 ')[1]);
+    if(ay!==by2)return by2-ay;return bm-am;
+  });
+  mkKeys.forEach(function(mk){vis[mk].sort(function(a,b){return b.localeCompare(a);});});
+  var histHtml=mkKeys.length?mkKeys.map(function(mk){
+    return'<div class="hist-month"><div class="hist-mt">'+mk+' · '+vis[mk].length+'회</div><div class="hist-dates">'+
+      vis[mk].map(function(d){return'<span class="hist-tag" style="cursor:default;">'+d+'</span>';}).join('')+'</div></div>';
+  }).join(''):'<div style="color:var(--txm);font-size:12px;">방문 이력 없음</div>';
+  var amt=s.amount?parseInt((s.amount||'0').replace(/,/g,'')).toLocaleString('ko-KR')+'원':'-';
+  document.getElementById('comp-detail-body').innerHTML=
+    '<div style="background:var(--sf);border-radius:8px;padding:12px;margin-bottom:12px;">'+
+    '<div style="font-size:15px;font-weight:500;margin-bottom:8px;">'+s.name+'</div>'+
+    '<table style="width:100%;font-size:12px;border-collapse:collapse;">'+
+    '<tr><td style="color:var(--txm);padding:3px 0;width:80px;">업체명</td><td style="font-weight:500;">'+(s.company||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">발주기관</td><td>'+(s.client||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">계약금액</td><td>'+amt+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">지도횟수</td><td>'+s.done+'/'+s.total+'회 완료</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">계약일</td><td>'+(s.contract||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">착공일</td><td>'+(s.start||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">준공일</td><td>'+(s.end||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">완료일</td><td style="color:#10b981;font-weight:500;">'+(lv||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">담당자</td><td>'+(s.manager||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">연락처</td><td>'+(s.phone||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">주소</td><td>'+(s.address||'-')+'</td></tr>'+
+    '<tr><td style="color:var(--txm);padding:3px 0;">비고</td><td>'+(s.note||'-')+'</td></tr>'+
+    '</table></div>'+
+    '<div style="font-size:12px;font-weight:500;margin-bottom:8px;">방문 이력</div>'+histHtml;
+  document.getElementById('ov-comp-detail').classList.add('open');
+}
+
 function compExp(exp){document.querySelectorAll('[id^="cm-"]').forEach(function(el){var key=el.id.replace('cm-','');el.style.display=exp?'block':'none';var arr=document.getElementById('arr-'+key);if(arr)arr.textContent=exp?'▲':'▼';cExp[key]=exp;});}
 
 document.querySelectorAll('.ov').forEach(function(o){
