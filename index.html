@@ -1242,7 +1242,7 @@ function subSite(){
     var startDone=parseInt(document.getElementById('n_done').value)||0;
     var totalCnt=parseInt(document.getElementById('n_tot').value)||0;
     if(startDone>totalCnt)startDone=totalCnt;
-    var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.replace(/,/g,'').trim(),total:totalCnt,done:startDone,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false};
+    var newSite={id:Date.now(),name:nm,company:document.getElementById('n_co').value.trim(),client:document.getElementById('n_cl').value.trim(),address:document.getElementById('n_ad').value.trim(),amount:document.getElementById('n_am').value.replace(/,/g,'').trim(),total:totalCnt,done:startDone,manager:document.getElementById('n_mg').value.trim(),phone:document.getElementById('n_ph').value.trim(),email:document.getElementById('n_em').value.trim(),note:document.getElementById('n_nt').value.trim(),contract:document.getElementById('n_ct').value,start:document.getElementById('n_st').value,end:document.getElementById('n_en').value,origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false,reverted:false};
     sites.push(newSite);
     // 구글 드라이브에 현장 폴더 자동 생성
     if(accessToken)createSiteFolder(newSite);
@@ -1607,7 +1607,7 @@ function handleExcelImport(input){
           contract:parseDate(row['계약일']),
           start:parseDate(row['착공일']),
           end:parseDate(row['준공일']),
-          origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false
+          origEnd:null,signed:false,stopped:false,early:false,stopHist:false,dc:false,rpt:false,reverted:false
         });
         added++;
       });
@@ -1677,7 +1677,7 @@ function downloadTemplate(){
   XLSX.utils.book_append_sheet(wb,ws,'현장목록');
   XLSX.writeFile(wb,'현장등록_양식.xlsx');
 }
-function getCS(){return sites.filter(function(s){return s.done>=s.total&&s.total>0;});}
+function getCS(){return sites.filter(function(s){return s.done>=s.total&&s.total>0&&!s.reverted;});}
 function getCY(){var yrs=[];getCS().forEach(function(s){var lv=getLV(s.id);var y=lv?lv.split('-')[0]:String(new Date().getFullYear());if(yrs.indexOf(y)<0)yrs.push(y);});return yrs.sort(function(a,b){return b-a;});}
 function renderComp(){
   var yrs=getCY();
@@ -1751,9 +1751,9 @@ function revertToActive(sid){
 function doRevert(){
   var sid=parseInt(document.getElementById('revert-site-id').value);
   var s=gS(sid);if(!s)return;
-  if(s.done>0)s.done--;
   s.rptCount=s.rptCount>0?s.rptCount-1:0;
   s.rpt=false;
+  s.reverted=true;
   cp('ov-revert');
   // 로컬 저장 후 즉시 화면 전환
   try{
