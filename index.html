@@ -105,7 +105,7 @@ canvas{display:block;width:100%;height:170px;}
 .comp-month-sec{margin-bottom:14px;}
 .comp-month-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--sf);border-radius:7px;margin-bottom:6px;cursor:pointer;}
 .comp-month-title{font-size:12px;font-weight:500;}
-.comp-site-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--bd);border-radius:7px;margin-bottom:5px;}
+.comp-site-row{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 12px;border:1px solid var(--bd);border-radius:7px;margin-bottom:5px;}
 .comp-site-name{font-size:12px;font-weight:500;}
 .comp-site-name.unsub{color:#dc2626;}
 .tb-sub{border-color:#dc2626;background:#fff5f5;color:#dc2626;}
@@ -1699,12 +1699,28 @@ function renderComp(){
       '</div>'+
       '<div id="cm-'+key+'" style="display:'+(exp?'block':'none')+';">'+
         rows.map(function(r){var s=r.site;var lm=r.lv?parseInt(r.lv.split('-')[1])+'/'+parseInt(r.lv.split('-')[2]):'';
-          return'<div class="comp-site-row"><div style="flex:1;min-width:0;"><div class="comp-site-name '+(!s.submitted?'unsub':'')+'" style="cursor:pointer;text-decoration:underline;" onclick="oCompDetail('+s.id+')">'+s.name+'</div>'+
-            '<div style="font-size:10px;color:var(--txm);margin-top:1px;">'+s.manager+' · 마지막 방문: '+(lm||'-')+'</div></div>'+
-            '<div style="display:flex;gap:4px;">'+
-            '<button class="tb '+(s.submitted?'tb-subbed':'tb-sub')+'" onclick="togSub('+s.id+')">'+(s.submitted?'제출완료':'서류제출')+'</button>'+
-            '<button class="tb" style="border-color:#f59e0b;background:#fff8e1;color:#92400e;" onclick="revertToActive('+s.id+')">되돌리기</button>'+
-            '</div></div>';
+          var amt2=s.amount?parseInt((s.amount||'0').replace(/,/g,'')).toLocaleString('ko-KR')+'원':'-';
+          var pct2=s.total>0?Math.round(s.done/s.total*100):0;
+          return'<div class="comp-site-row">'+
+            '<div style="flex:1;min-width:0;">'+
+              '<div class="comp-site-name '+(!s.submitted?'unsub':'')+'" style="cursor:pointer;text-decoration:underline;margin-bottom:6px;" onclick="oCompDetail('+s.id+')">'+s.name+'</div>'+
+              '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px 10px;font-size:10px;margin-bottom:5px;">'+
+                '<span style="color:var(--txm);">업체명</span><span>+'+(s.company||'-')+'</span>'+
+                '<span style="color:var(--txm);">발주기관</span><span>'+(s.client||'-')+'</span>'+
+                '<span style="color:var(--txm);">계약금액</span><span>'+amt2+'</span>'+
+                '<span style="color:var(--txm);">지도현황</span><span>'+s.done+'/'+s.total+'</span>'+
+                '<span style="color:var(--txm);">계약일</span><span>'+(s.contract||'-')+'</span>'+
+                '<span style="color:var(--txm);">착공일</span><span>'+(s.start||'-')+'</span>'+
+                '<span style="color:var(--txm);">준공일</span><span>'+(s.end||'-')+'</span>'+
+                '<span style="color:var(--txm);">마지막방문</span><span>'+(lm||'-')+'</span>'+
+              '</div>'+
+              '<div style="font-size:10px;color:var(--txm);">비고: <span style="color:var(--tx);">'+(s.note||'-')+'</span></div>'+
+            '</div>'+
+            '<div style="display:flex;flex-direction:column;gap:4px;margin-left:10px;flex-shrink:0;">'+
+              '<button class="tb '+(s.submitted?'tb-subbed':'tb-sub')+'" onclick="togSub('+s.id+')">'+(s.submitted?'제출완료':'서류제출')+'</button>'+
+              '<button class="tb" style="border-color:#f59e0b;background:#fff8e1;color:#92400e;" onclick="revertToActive('+s.id+')">되돌리기</button>'+
+            '</div>'+
+          '</div>';
         }).join('')+'</div></div>';
   }).join('');
 }
