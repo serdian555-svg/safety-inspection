@@ -1742,6 +1742,26 @@ function renderComp(){
         }).join('')+'</div></div>';
   }).join('');
 }
+function doCompMove(){
+  var sid=parseInt(document.getElementById('comp-move-id').value);
+  var s=gS(sid);if(!s)return;
+  s.reverted=false;
+  cp('ov-comp-move');
+  try{
+    localStorage.setItem('sites',JSON.stringify(sites));
+    localStorage.setItem('sch',JSON.stringify(sch));
+  }catch(e){}
+  if(db){db.collection('appdata').doc('main').set({sites:sites,sch:sch,updatedAt:new Date().toISOString()});}
+  renderST();renderComp();
+  sw('comp');
+}
+function doCompMoveById(sid){
+  var s=gS(sid);if(!s)return;
+  document.getElementById('comp-move-name').textContent=s.name;
+  document.getElementById('comp-move-id').value=sid;
+  document.getElementById('ov-comp-move').classList.add('open');
+}
+
 function revertToActive(sid){
   var s=gS(sid);if(!s)return;
   document.getElementById('revert-site-name').textContent=s.name;
