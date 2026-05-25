@@ -1367,10 +1367,10 @@ function sortByContract(arr){
   });
 }
 function getSorted(){
-  var early=sortByContract(sites.filter(function(s){return s.early&&!s.stopped&&s.done<s.total;}));
-  var needReport=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&hasUnreportedVisit(s.id);}));
-  var normal=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&!s.rpt&&!hasUnreportedVisit(s.id);}));
-  var rptDone=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&s.done<s.total&&s.rpt;}));
+  var early=sortByContract(sites.filter(function(s){return s.early&&!s.stopped&&(s.done<s.total||s.reverted);}));
+  var needReport=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&(s.done<s.total||s.reverted)&&!s.rpt&&hasUnreportedVisit(s.id);}));
+  var normal=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&(s.done<s.total||s.reverted)&&!s.rpt&&!hasUnreportedVisit(s.id);}));
+  var rptDone=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&(s.done<s.total||s.reverted)&&s.rpt;}));
   var stopped=sortByContract(sites.filter(function(s){return s.stopped;}));
   return early.concat(needReport).concat(normal).concat(rptDone).concat(stopped);
 }
