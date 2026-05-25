@@ -1751,13 +1751,23 @@ function revertToActive(sid){
 function doRevert(){
   var sid=parseInt(document.getElementById('revert-site-id').value);
   var s=gS(sid);if(!s)return;
-  // done 1 줄여서 완료현장에서 빠져나오게
   if(s.done>0)s.done--;
   s.rptCount=s.rptCount>0?s.rptCount-1:0;
   s.rpt=false;
   cp('ov-revert');
-  saveData();renderST();renderComp();
-  sw('sites');
+  // 로컬 저장 후 즉시 화면 전환
+  try{
+    localStorage.setItem('sites',JSON.stringify(sites));
+    localStorage.setItem('sch',JSON.stringify(sch));
+  }catch(e){}
+  // Firestore 저장 (비동기)
+  if(db){
+    db.collection('appdata').doc('main').set({
+      sites:sites,sch:sch,updatedAt:new Date().toISOString()
+    });
+  }
+  renderST();
+  renderComp();
 }
 
 function togM(key){var el=document.getElementById('cm-'+key);var arr=document.getElementById('arr-'+key);var exp=el.style.display==='none';el.style.display=exp?'block':'none';if(arr)arr.textContent=exp?'▲':'▼';cExp[key]=exp;}
