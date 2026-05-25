@@ -1751,7 +1751,8 @@ function revertToActive(sid){
 function doRevert(){
   var sid=parseInt(document.getElementById('revert-site-id').value);
   var s=gS(sid);if(!s)return;
-  // 지도횟수는 그대로, 보고서만 1회 미작성으로
+  // done 1 줄여서 완료현장에서 빠져나오게
+  if(s.done>0)s.done--;
   s.rptCount=s.rptCount>0?s.rptCount-1:0;
   s.rpt=false;
   cp('ov-revert');
