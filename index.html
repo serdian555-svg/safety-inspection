@@ -1317,8 +1317,6 @@ function doAddVisit(){
     if(sch[newKey].length>=8){cp('ov-add-visit');document.getElementById('ov-hist').classList.add('open');return;}
     sch[newKey].push({siteId:addVisitSiteId,visited:true,vOrder:Date.now()});
   }
-  var s=gS(addVisitSiteId);
-  if(s&&s.done<s.total)s.done++;
   cp('ov-add-visit');
   saveData();renderCal();renderAB();renderST();
   oHist(addVisitSiteId);
@@ -1366,11 +1364,25 @@ function sortByContract(arr){
     return db.localeCompare(da);
   });
 }
+function isRptDone(s){
+  // 방문횟수만큼 보고서 다 썼는지 확인
+  var total=0;
+  Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
+  var done=s.rptCount||0;
+  return total>0&&done>=total;
+}
+function hasRptPending(s){
+  var total=0;
+  Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
+  var done=s.rptCount||0;
+  return total>0&&done<total;
+}
 function getSorted(){
-  var early=sortByContract(sites.filter(function(s){return s.early&&!s.stopped&&(s.done<s.total||s.reverted);}));
-  var needReport=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&(s.done<s.total||s.reverted)&&!s.rpt&&hasUnreportedVisit(s.id);}));
-  var normal=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&(s.done<s.total||s.reverted)&&!s.rpt&&!hasUnreportedVisit(s.id);}));
-  var rptDone=sortByContract(sites.filter(function(s){return !s.early&&!s.stopped&&(s.done<s.total||s.reverted)&&s.rpt;}));
+  var active=function(s){return !s.stopped&&(s.done<s.total||s.reverted);};
+  var early=sortByContract(sites.filter(function(s){return s.early&&active(s);}));
+  var needReport=sortByContract(sites.filter(function(s){return !s.early&&active(s)&&hasRptPending(s);}));
+  var normal=sortByContract(sites.filter(function(s){return !s.early&&active(s)&&!hasRptPending(s)&&!isRptDone(s);}));
+  var rptDone=sortByContract(sites.filter(function(s){return !s.early&&active(s)&&isRptDone(s);}));
   var stopped=sortByContract(sites.filter(function(s){return s.stopped;}));
   return early.concat(needReport).concat(normal).concat(rptDone).concat(stopped);
 }
