@@ -825,18 +825,21 @@ function hasUnreportedVisit(sid){
   for(var i=0;i<keys.length;i++){
     var slots=sch[keys[i]];
     for(var j=0;j<slots.length;j++){
-      if(slots[j].siteId===sid&&slots[j].visited)return true;
+      if(slots[j].siteId===sid&&slots[j].visited&&!slots[j].noRpt)return true;
     }
   }
   return false;
 }
-function getUnreportedCount(sid){
-  var s=gS(sid);if(!s)return 0;
+function getVisitCount(sid){
   var total=0;
   Object.keys(sch).forEach(function(k){
-    sch[k].forEach(function(e){if(e.siteId===sid&&e.visited)total++;});
+    sch[k].forEach(function(e){if(e.siteId===sid&&e.visited&&!e.noRpt)total++;});
   });
-  // 완료된 보고서 수 = s.rptCount (별도 저장)
+  return total;
+}
+function getUnreportedCount(sid){
+  var s=gS(sid);if(!s)return 0;
+  var total=getVisitCount(sid);
   var done=s.rptCount||0;
   var remaining=total-done;
   return remaining<0?0:remaining;
@@ -1315,7 +1318,12 @@ function doAddVisit(){
   for(var i=0;i<sch[newKey].length;i++){if(sch[newKey][i].siteId===addVisitSiteId){found=true;sch[newKey][i].visited=true;sch[newKey][i].vOrder=Date.now();break;}}
   if(!found){
     if(sch[newKey].length>=8){cp('ov-add-visit');document.getElementById('ov-hist').classList.add('open');return;}
-    sch[newKey].push({siteId:addVisitSiteId,visited:true,vOrder:Date.now()});
+    sch[newKey].push({siteId:addVisitSiteId,visited:true,vOrder:Date.now(),noRpt:true});
+  } else {
+    // 기존 슬롯이면 noRpt 플래그 유지
+    for(var j=0;j<sch[newKey].length;j++){
+      if(sch[newKey][j].siteId===addVisitSiteId){sch[newKey][j].noRpt=true;break;}
+    }
   }
   cp('ov-add-visit');
   saveData();renderCal();renderAB();renderST();
@@ -1365,17 +1373,19 @@ function sortByContract(arr){
   });
 }
 function isRptDone(s){
-  // 방문횟수만큼 보고서 다 썼는지 확인
-  var total=0;
-  Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
+  // 기존 rpt 플래그 또는 rptCount 기준으로 판단
+  if(s.rpt)return true;
+  var total=getVisitCount(s.id);
+  if(total===0)return false;
   var done=s.rptCount||0;
-  return total>0&&done>=total;
+  return done>=total;
 }
 function hasRptPending(s){
-  var total=0;
-  Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
+  if(s.rpt)return false;
+  var total=getVisitCount(s.id);
+  if(total===0)return false;
   var done=s.rptCount||0;
-  return total>0&&done<total;
+  return done<total;
 }
 function getSorted(){
   var active=function(s){return !s.stopped&&(s.done<s.total||s.reverted);};
@@ -1514,8 +1524,7 @@ function renderST(){
     return'<tr class="'+rc+'">'+
       '<td><span class="sn" style="'+nmStyle+'cursor:pointer;text-decoration:underline;" onclick="oHist('+s.id+')">'+s.name+'</span>'+sb+ci+compLink+'</td>'+
       (function(){
-      var total=0;
-      Object.keys(sch).forEach(function(k){sch[k].forEach(function(e){if(e.siteId===s.id&&e.visited)total++;});});
+      var total=getVisitCount(s.id);
       var done=s.rptCount||0;
       var remaining=total-done;if(remaining<0)remaining=0;
       if(total===0)return'<td style="text-align:center;"><span style="color:var(--txm);font-size:11px;">-</span></td>';
