@@ -871,6 +871,7 @@ function getAl(){
   var t=new Date();t.setHours(0,0,0,0);
   return sites.filter(function(s){
     if(!s.end||s.stopped)return false;
+    if(s.submitted)return false; // 서류제출 완료된 현장 제외
     var d=dD(t.getTime(),pD(s.end).getTime());
     return d>=0&&d<=7;
   }).map(function(s){return{site:s,diff:dD(new Date().setHours(0,0,0,0),pD(s.end).getTime())};});
@@ -974,7 +975,14 @@ function cm(d){cM+=d;if(cM>11){cM=0;cY++;}if(cM<0){cM=11;cY--;}renderCal();}
 
 // ===== 달력 =====
 function renderCal(){
-  document.getElementById('cal-title').textContent=cY+'년 '+(cM+1)+'월';
+  var visitCnt=0;
+  var ymPrefix=cY+'-'+String(cM+1).padStart(2,'0');
+  Object.keys(sch).forEach(function(k){
+    if(k.indexOf(ymPrefix)===0){
+      sch[k].forEach(function(e){if(e.visited)visitCnt++;});
+    }
+  });
+  document.getElementById('cal-title').textContent=cY+'년 '+(cM+1)+'월 (총 '+visitCnt+'회)';
   var g=document.getElementById('cal-grid');
   g.querySelectorAll('.cal-cell').forEach(function(e){e.remove();});
   var fd=new Date(cY,cM,1).getDay(),dim=new Date(cY,cM+1,0).getDate(),dip=new Date(cY,cM,0).getDate();
