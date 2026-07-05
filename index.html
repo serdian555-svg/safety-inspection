@@ -174,6 +174,9 @@ canvas{display:block;width:100%;height:170px;}
 .plan-tbl input{width:44px;padding:3px 4px;border:1px solid var(--bd);border-radius:5px;font-size:11px;text-align:center;background:#fffbe6;color:var(--tx);}
 .rem-ok{color:var(--su);font-weight:500;}
 .rem-warn{color:#dc2626;font-weight:500;}
+.plan-scroll{overflow-y:auto;}
+.plan-tbl thead tr:nth-child(1) th{position:sticky;top:0;z-index:6;background:var(--sf);}
+.plan-tbl thead tr.plan-total-row td{position:sticky;top:33px;z-index:5;background:var(--bg);border-bottom:2px solid var(--bd);padding:6px 6px;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -267,8 +270,7 @@ canvas{display:block;width:100%;height:170px;}
 <div class="sheet" id="sh-plan">
   <div style="font-size:15px;font-weight:500;margin-bottom:6px;">월별계획</div>
   <div style="font-size:11px;color:var(--txm);margin-bottom:10px;">이번달부터 2개월 뒤까지 노란 칸에 현장별 방문 계획 횟수를 입력하세요. 미배정 횟수는 자동 계산됩니다. (공사정지 현장은 제외됩니다)</div>
-  <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:var(--pr);" id="plan-summary"></div>
-  <div class="st-wrap"><table class="st plan-tbl" id="plan-tbl"></table></div>
+  <div class="st-wrap plan-scroll" id="plan-scroll"><table class="st plan-tbl" id="plan-tbl"></table></div>
 </div>
 
 <!-- 현장 관리 시트 -->
@@ -1468,27 +1470,35 @@ function renderPlanSheet(){
   var months=getPlanMonths();
   var list=sortByContract(sites.filter(function(s){return !s.stopped;}));
   var totals=months.map(function(){return 0;});
-  var html='<thead><tr><th style="min-width:160px;">공사명</th><th>업체명</th><th>발주기관</th><th>착공일</th><th>준공일</th><th>총지도<br>횟수</th><th>완료<br>횟수</th>';
+  var html='<tr><th style="min-width:160px;">공사명</th><th>업체명</th><th>발주기관</th><th>착공일</th><th>준공일</th><th>총지도<br>횟수</th><th>완료<br>횟수</th>';
   months.forEach(function(mo){html+='<th style="text-align:center;">'+(mo.m+1)+'월</th>';});
-  html+='<th>미배정</th></tr></thead><tbody>';
+  html+='<th>미배정</th></tr>';
+  var totalRowHtml='<tr class="plan-total-row"><td colspan="7" style="color:var(--pr);">전체 합계</td>';
+  var body='';
   list.forEach(function(s){
     var sum=0;
-    html+='<tr><td>'+s.name+'</td><td>'+(s.company||'-')+'</td><td>'+(s.client||'-')+'</td><td style="white-space:nowrap;">'+(s.start||'-')+'</td><td style="white-space:nowrap;">'+(s.end||'-')+'</td>'+
+    body+='<tr><td>'+s.name+'</td><td>'+(s.company||'-')+'</td><td>'+(s.client||'-')+'</td><td style="white-space:nowrap;">'+(s.start||'-')+'</td><td style="white-space:nowrap;">'+(s.end||'-')+'</td>'+
       '<td style="text-align:center;">'+s.total+'</td><td style="text-align:center;">'+s.done+'</td>';
     months.forEach(function(mo,mi){
       if(!monthlyPlan[mo.key])monthlyPlan[mo.key]={};
       var v=monthlyPlan[mo.key][s.id]||0;sum+=v;totals[mi]+=v;
-      html+='<td style="text-align:center;"><input type="number" min="0" value="'+v+'" onchange="setPlan(\''+mo.key+'\','+s.id+',this.value)"></td>';
+      body+='<td style="text-align:center;"><input type="number" min="0" value="'+v+'" onchange="setPlan(\''+mo.key+'\','+s.id+',this.value)"></td>';
     });
     var remain=s.total-s.done-sum;
-    html+='<td style="text-align:center;" class="'+(remain<0?'rem-warn':'rem-ok')+'">'+remain+'</td></tr>';
+    body+='<td style="text-align:center;" class="'+(remain<0?'rem-warn':'rem-ok')+'">'+remain+'</td></tr>';
   });
-  html+='</tbody>';
-  document.getElementById('plan-tbl').innerHTML=html;
-  document.getElementById('plan-summary').innerHTML=months.map(function(mo,mi){
-    return'<span style="margin-right:14px;"><b>'+(mo.m+1)+'월</b> '+totals[mi]+'회 입력됨</span>';
-  }).join('');
+  months.forEach(function(mo,mi){totalRowHtml+='<td style="text-align:center;color:var(--pr);">'+totals[mi]+'회</td>';});
+  totalRowHtml+='<td></td></tr>';
+  document.getElementById('plan-tbl').innerHTML='<thead>'+html+totalRowHtml+'</thead><tbody>'+body+'</tbody>';
+  sizePlanScroll();
 }
+function sizePlanScroll(){
+  var el=document.getElementById('plan-scroll');
+  if(!el)return;
+  var top=el.getBoundingClientRect().top;
+  el.style.height=Math.max(200,window.innerHeight-top-12)+'px';
+}
+window.addEventListener('resize',sizePlanScroll);
 function setPlan(monthKey,sid,val){
   if(!monthlyPlan[monthKey])monthlyPlan[monthKey]={};
   var n=parseInt(val);if(isNaN(n)||n<0)n=0;
