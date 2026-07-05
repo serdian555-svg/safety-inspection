@@ -159,6 +159,21 @@ canvas{display:block;width:100%;height:170px;}
 .drive-status{font-size:10px;padding:2px 8px;border-radius:99px;}
 .drive-ok{background:#ecfdf5;color:#065f46;}
 .drive-no{background:#fff1f2;color:#991b1b;}
+.cal-cell.cal-dragover{border-color:var(--pr)!important;border-width:2px!important;background:var(--prl)!important;}
+.cal-cell.reg-fail{border-color:#dc2626!important;border-width:2px!important;background:#fef2f2!important;}
+.cal-wrap{display:flex;gap:0;}
+#cal-main{flex:1;min-width:0;}
+#plan-panel{display:none;flex:0 0 33%;max-width:33%;border-left:2px solid var(--bd);padding-left:14px;margin-left:14px;max-height:calc(100vh - 210px);overflow-y:auto;}
+#plan-panel.open{display:block;}
+.panel-title{font-size:12px;font-weight:500;color:var(--txm);margin-bottom:8px;}
+.plan-box{background:var(--prl);color:var(--pr);border:1px solid #bfdbfe;border-radius:5px;padding:8px 10px;margin-bottom:7px;font-size:12px;line-height:1.4;cursor:grab;word-break:keep-all;overflow-wrap:break-word;user-select:none;}
+.plan-box:active{cursor:grabbing;}
+.plan-box.selected{outline:2px solid var(--pr);background:#dbeafe;}
+.plan-box .co{font-size:10px;color:var(--txm);margin-top:2px;}
+.plan-empty{font-size:12px;color:var(--txm);text-align:center;padding:20px 0;}
+.plan-tbl input{width:44px;padding:3px 4px;border:1px solid var(--bd);border-radius:5px;font-size:11px;text-align:center;background:#fffbe6;color:var(--tx);}
+.rem-ok{color:var(--su);font-weight:500;}
+.rem-warn{color:#dc2626;font-weight:500;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -188,7 +203,7 @@ canvas{display:block;width:100%;height:170px;}
 <div class="ov" id="ov-confirm">
   <div class="confirm-pop">
     <div style="font-size:14px;font-weight:500;margin-bottom:8px;">스케줄 삭제</div>
-    <div style="font-size:12px;color:var(--txm);">이 현장 스케줄을 삭제할까요?</div>
+    <div style="font-size:12px;color:var(--txm);" id="confirm-del-msg">이 현장 스케줄을 삭제할까요?</div>
     <div class="confirm-btns">
       <button class="btn-o" style="flex:1;" onclick="cp('ov-confirm');document.getElementById('ov-act').classList.add('open');">취소</button>
       <button class="btn-p" style="flex:1;background:#dc2626;" onclick="doDelSlot()">삭제</button>
@@ -215,8 +230,10 @@ canvas{display:block;width:100%;height:170px;}
 <div class="tab-bar">
   <button class="tab-btn active" onclick="sw('cal')" id="tab-cal">📅 달력</button>
   <button class="tab-btn" onclick="sw('sites')" id="tab-sites">🏗️ 현장 관리</button>
+  <button class="tab-btn" onclick="sw('plan')" id="tab-plan">📋 월별계획</button>
   <button class="tab-btn" onclick="sw('comp')" id="tab-comp">✅ 완료현장</button>
   <button class="tab-btn" id="split-btn" onclick="toggleSplit()" style="margin-left:auto;display:none;">⊞ 분할 보기</button>
+  <button class="tab-btn" id="plan-panel-btn" onclick="togglePlanPanel()" style="display:none;">📋 월별계획 후보</button>
 </div>
 
 <!-- 달력 시트 -->
@@ -227,15 +244,30 @@ canvas{display:block;width:100%;height:170px;}
 
 <div class="sheet active" id="sh-cal">
   <div class="alert-banner" id="ab" style="display:none;"></div>
-  <div class="cal-header">
-    <button class="cal-nav" onclick="cm(-1)">‹</button>
-    <div class="cal-title" id="cal-title"></div>
-    <button class="cal-nav" onclick="cm(1)">›</button>
+  <div class="cal-wrap">
+    <div id="cal-main">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="cm(-1)">‹</button>
+        <div class="cal-title" id="cal-title"></div>
+        <button class="cal-nav" onclick="cm(1)">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid">
+        <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
+        <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
+      </div>
+    </div>
+    <div id="plan-panel">
+      <div class="panel-title" id="panel-title"></div>
+      <div id="panel-list"></div>
+    </div>
   </div>
-  <div class="cal-grid" id="cal-grid">
-    <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
-    <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>
-  </div>
+</div>
+
+<!-- 월별계획 시트 -->
+<div class="sheet" id="sh-plan">
+  <div style="font-size:15px;font-weight:500;margin-bottom:6px;">월별계획</div>
+  <div style="font-size:11px;color:var(--txm);margin-bottom:10px;">이번달부터 2개월 뒤까지 노란 칸에 현장별 방문 계획 횟수를 입력하세요. 미배정 횟수는 자동 계산됩니다. (공사정지 현장은 제외됩니다)</div>
+  <div class="st-wrap"><table class="st plan-tbl" id="plan-tbl"></table></div>
 </div>
 
 <!-- 현장 관리 시트 -->
@@ -542,21 +574,31 @@ var currentUnphSiteId=null;
 
 var sites=[];
 var sch={};
+var monthlyPlan={};
 
 // ===== 로컬 스토리지 저장/불러오기 =====
 function saveData(){
   try{
     localStorage.setItem('sites',JSON.stringify(sites));
     localStorage.setItem('sch',JSON.stringify(sch));
+    localStorage.setItem('monthlyPlan',JSON.stringify(monthlyPlan));
   }catch(e){}
 }
 function loadData(){
   try{
     var s=localStorage.getItem('sites');
     var sc=localStorage.getItem('sch');
+    var mp=localStorage.getItem('monthlyPlan');
     if(s)sites=JSON.parse(s);
     if(sc)sch=JSON.parse(sc);
+    if(mp)monthlyPlan=JSON.parse(mp);
   }catch(e){}
+  cleanOldPlans();
+}
+function ymKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function cleanOldPlans(){
+  var cutoff=ymKey(new Date());
+  Object.keys(monthlyPlan).forEach(function(k){if(k<cutoff)delete monthlyPlan[k];});
 }
 
 // ===== 구글 로그인 =====
@@ -909,10 +951,12 @@ var isSplit=false;
 
 function sw(tab){
   if(isSplit)exitSplit();
-  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',['cal','sites','comp'][i]===tab);});
+  if(tab!=='cal'&&planPanelOpen)togglePlanPanel();
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',['cal','sites','plan','comp'][i]===tab);});
   document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('active');});
   document.getElementById('sh-'+tab).classList.add('active');
   if(tab==='sites')renderST();
+  if(tab==='plan')renderPlanSheet();
   if(tab==='comp')renderComp();
 }
 
@@ -922,6 +966,8 @@ function toggleSplit(){
 }
 
 function enterSplit(){
+  if(planPanelOpen)togglePlanPanel();
+  document.getElementById('plan-panel-btn').style.display='none';
   isSplit=true;
   document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
   var wrap=document.getElementById('split-wrap');
@@ -961,6 +1007,8 @@ function exitSplit(){
   document.getElementById('tab-cal').classList.add('active');
   document.getElementById('split-btn').textContent='⊞ 분할 보기';
   document.getElementById('split-btn').classList.remove('active');
+  var isMobile=/Mobi|Android/i.test(navigator.userAgent);
+  if(!isMobile)document.getElementById('plan-panel-btn').style.display='block';
   renderCal();
 }
 
@@ -969,6 +1017,7 @@ function initSplitBtn(){
   var isMobile=/Mobi|Android/i.test(navigator.userAgent);
   if(!isMobile){
     document.getElementById('split-btn').style.display='block';
+    document.getElementById('plan-panel-btn').style.display='block';
   }
 }
 function cm(d){cM+=d;if(cM>11){cM=0;cY++;}if(cM<0){cM=11;cY--;}renderCal();}
@@ -1003,7 +1052,26 @@ function renderCal(){
       var el=document.createElement('span');el.className='cal-slot'+(e.visited?' visited':'');
       el.title=s.name;el.textContent=tr(s.name,9);c.appendChild(el);
     });
-    (function(cy,cm2,cd,ck){c.onclick=function(){oDPop(cy,cm2,cd,ck);};})(cY,cM,d,k);
+    (function(cy,cm2,cd,ck){
+      c.onclick=function(){
+        if(planPanelOpen&&selectedPlanSiteId!==null){
+          var ok=registerPlanSite(ck,selectedPlanSiteId);
+          if(!ok){var cell=this;cell.classList.add('reg-fail');setTimeout(function(){cell.classList.remove('reg-fail');},500);}
+          clearPlanSelection();
+        }else{
+          oDPop(cy,cm2,cd,ck);
+        }
+      };
+      c.ondragover=function(ev){ev.preventDefault();this.classList.add('cal-dragover');};
+      c.ondragleave=function(){this.classList.remove('cal-dragover');};
+      c.ondrop=function(ev){
+        ev.preventDefault();this.classList.remove('cal-dragover');
+        var sid=parseInt(ev.dataTransfer.getData('text/plain'));
+        if(!sid)return;
+        var ok=registerPlanSite(ck,sid);
+        if(!ok){var cell=this;cell.classList.add('reg-fail');setTimeout(function(){cell.classList.remove('reg-fail');},500);}
+      };
+    })(cY,cM,d,k);
     g.appendChild(c);
   }
   var tot=fd+dim;var rem=tot%7===0?0:7-(tot%7);
@@ -1012,6 +1080,7 @@ function renderCal(){
     var dd=document.createElement('div');dd.className='cal-date';dd.textContent=i;
     c.appendChild(dd);g.appendChild(c);
   }
+  renderPlanPanel();
 }
 
 function oDPop(y,m,d,k){
@@ -1057,6 +1126,11 @@ function goBack(){
 
 function askDel(){
   document.getElementById('ov-act').classList.remove('open');
+  var msg='이 현장 스케줄을 삭제할까요?';
+  if(selDate&&selIdx!==null&&sch[selDate]&&sch[selDate][selIdx]&&sch[selDate][selIdx].visited){
+    msg='⚠️ 방문완료 처리된 기록입니다.<br>정말 삭제할까요?';
+  }
+  document.getElementById('confirm-del-msg').innerHTML=msg;
   document.getElementById('ov-confirm').classList.add('open');
 }
 function doDelSlot(){
@@ -1139,7 +1213,9 @@ function oPhotoAct(){
 function onSS(){
   var q=document.getElementById('sch-search').value.trim();var el=document.getElementById('sch-res');
   if(!q){el.innerHTML='';return;}
-  var f=sites.filter(function(s){return !s.stopped&&s.name.indexOf(q)>=0&&s.done<s.total;});
+  var mk=selDate.slice(0,7);
+  var already={};(sch[selDate]||[]).forEach(function(e){already[e.siteId]=true;});
+  var f=getPlanCandidates(mk).filter(function(s){return !already[s.id]&&s.name.indexOf(q)>=0;});
   el.innerHTML=f.length?'<div class="s-res">'+f.map(function(s){return'<div class="s-item" onclick="addToDate('+s.id+')">'+s.name+'</div>';}).join('')+'</div>'
     :'<div class="s-res"><div style="padding:10px;text-align:center;color:var(--txm);font-size:12px;">검색 결과 없음</div></div>';
 }
@@ -1379,6 +1455,99 @@ function sortByContract(arr){
     var db=b.contract||'0000-00-00';
     return db.localeCompare(da);
   });
+}
+
+// ===== 월별계획 =====
+function getPlanMonths(){
+  var arr=[];var d=new Date();var y=d.getFullYear(),m=d.getMonth();
+  for(var i=0;i<3;i++){arr.push({y:y,m:m,key:ymKey(new Date(y,m,1))});m++;if(m>11){m=0;y++;}}
+  return arr;
+}
+function renderPlanSheet(){
+  var months=getPlanMonths();
+  var list=sortByContract(sites.filter(function(s){return !s.stopped;}));
+  var html='<thead><tr><th style="min-width:160px;">공사명</th><th>업체명</th><th>발주기관</th><th>착공일</th><th>준공일</th><th>총지도<br>횟수</th><th>완료<br>횟수</th>';
+  months.forEach(function(mo){html+='<th style="text-align:center;">'+(mo.m+1)+'월</th>';});
+  html+='<th>미배정</th></tr></thead><tbody>';
+  list.forEach(function(s){
+    var sum=0;
+    html+='<tr><td>'+s.name+'</td><td>'+(s.company||'-')+'</td><td>'+(s.client||'-')+'</td><td style="white-space:nowrap;">'+(s.start||'-')+'</td><td style="white-space:nowrap;">'+(s.end||'-')+'</td>'+
+      '<td style="text-align:center;">'+s.total+'</td><td style="text-align:center;">'+s.done+'</td>';
+    months.forEach(function(mo){
+      if(!monthlyPlan[mo.key])monthlyPlan[mo.key]={};
+      var v=monthlyPlan[mo.key][s.id]||0;sum+=v;
+      html+='<td style="text-align:center;"><input type="number" min="0" value="'+v+'" onchange="setPlan(\''+mo.key+'\','+s.id+',this.value)"></td>';
+    });
+    var remain=s.total-s.done-sum;
+    html+='<td style="text-align:center;" class="'+(remain<0?'rem-warn':'rem-ok')+'">'+remain+'</td></tr>';
+  });
+  html+='</tbody>';
+  document.getElementById('plan-tbl').innerHTML=html;
+}
+function setPlan(monthKey,sid,val){
+  if(!monthlyPlan[monthKey])monthlyPlan[monthKey]={};
+  var n=parseInt(val);if(isNaN(n)||n<0)n=0;
+  monthlyPlan[monthKey][sid]=n;
+  saveData();
+  renderPlanSheet();
+  renderPlanPanel();
+}
+function getRegCountInMonth(sid,monthKey){
+  var cnt=0;
+  Object.keys(sch).forEach(function(k){
+    if(k.indexOf(monthKey)===0)sch[k].forEach(function(e){if(e.siteId===sid)cnt++;});
+  });
+  return cnt;
+}
+function getPlanCandidates(monthKey){
+  var arr=[];
+  var list=sortByContract(sites.filter(function(s){return !s.stopped;}));
+  list.forEach(function(s){
+    var planned=(monthlyPlan[monthKey]&&monthlyPlan[monthKey][s.id])||0;
+    var reg=getRegCountInMonth(s.id,monthKey);
+    var remain=planned-reg;
+    for(var i=0;i<remain;i++)arr.push(s);
+  });
+  return arr;
+}
+function registerPlanSite(dateKey,sid){
+  if(!sch[dateKey])sch[dateKey]=[];
+  if(sch[dateKey].length>=8)return false;
+  for(var i=0;i<sch[dateKey].length;i++){if(sch[dateKey][i].siteId===sid)return false;}
+  sch[dateKey].push({siteId:sid,visited:false,vOrder:null});
+  saveData();renderCal();renderAB();
+  return true;
+}
+var planPanelOpen=false;
+var selectedPlanSiteId=null;
+function togglePlanPanel(){
+  planPanelOpen=!planPanelOpen;
+  document.getElementById('plan-panel').classList.toggle('open',planPanelOpen);
+  document.getElementById('plan-panel-btn').classList.toggle('active',planPanelOpen);
+  if(!planPanelOpen)clearPlanSelection();
+  renderPlanPanel();
+}
+function renderPlanPanel(){
+  if(!planPanelOpen)return;
+  var mk=ymKey(new Date(cY,cM,1));
+  document.getElementById('panel-title').textContent=cY+'년 '+(cM+1)+'월 후보 현장';
+  var boxes=getPlanCandidates(mk);
+  var el=document.getElementById('panel-list');
+  if(!boxes.length){el.innerHTML='<div class="plan-empty">이번 달 남은 후보가 없습니다.</div>';return;}
+  el.innerHTML=boxes.map(function(s){
+    return'<div class="plan-box'+(selectedPlanSiteId===s.id?' selected':'')+'" draggable="true" ondragstart="planDragStart(event,'+s.id+')" onclick="selectPlanBox(this,'+s.id+')">'+s.name+'<div class="co">'+(s.company||'')+'</div></div>';
+  }).join('');
+}
+function planDragStart(ev,sid){ev.dataTransfer.setData('text/plain',String(sid));}
+function selectPlanBox(el,sid){
+  if(selectedPlanSiteId===sid){clearPlanSelection();return;}
+  selectedPlanSiteId=sid;
+  document.querySelectorAll('.plan-box').forEach(function(b){b.classList.remove('selected');});
+  el.classList.add('selected');
+}
+function clearPlanSelection(){
+  selectedPlanSiteId=null;
+  document.querySelectorAll('.plan-box').forEach(function(b){b.classList.remove('selected');});
 }
 function isRptDone(s){
   // 기존 rpt 플래그 또는 rptCount 기준으로 판단
@@ -1779,8 +1948,9 @@ function doCompMove(){
   try{
     localStorage.setItem('sites',JSON.stringify(sites));
     localStorage.setItem('sch',JSON.stringify(sch));
+    localStorage.setItem('monthlyPlan',JSON.stringify(monthlyPlan));
   }catch(e){}
-  if(db){db.collection('appdata').doc('main').set({sites:sites,sch:sch,updatedAt:new Date().toISOString()});}
+  if(db){db.collection('appdata').doc('main').set({sites:sites,sch:sch,monthlyPlan:monthlyPlan,updatedAt:new Date().toISOString()});}
   renderST();renderComp();
   sw('comp');
 }
@@ -1808,11 +1978,12 @@ function doRevert(){
   try{
     localStorage.setItem('sites',JSON.stringify(sites));
     localStorage.setItem('sch',JSON.stringify(sch));
+    localStorage.setItem('monthlyPlan',JSON.stringify(monthlyPlan));
   }catch(e){}
   // Firestore 저장 (비동기)
   if(db){
     db.collection('appdata').doc('main').set({
-      sites:sites,sch:sch,updatedAt:new Date().toISOString()
+      sites:sites,sch:sch,monthlyPlan:monthlyPlan,updatedAt:new Date().toISOString()
     });
   }
   renderST();
@@ -1905,7 +2076,9 @@ function loadFromFirestore(){
       var data=doc.data();
       if(data.sites)sites=data.sites;
       if(data.sch)sch=data.sch;
+      if(data.monthlyPlan)monthlyPlan=data.monthlyPlan;
     }
+    cleanOldPlans();
     renderCal();renderAB();renderST();showALP();
     document.getElementById("sync-status").textContent="☁️ 동기화됨";
   },function(err){
@@ -1920,11 +2093,13 @@ function saveData(){
   try{
     localStorage.setItem("sites",JSON.stringify(sites));
     localStorage.setItem("sch",JSON.stringify(sch));
+    localStorage.setItem("monthlyPlan",JSON.stringify(monthlyPlan));
   }catch(e){}
   if(db){
     db.collection("appdata").doc("main").set({
       sites:sites,
       sch:sch,
+      monthlyPlan:monthlyPlan,
       updatedAt:new Date().toISOString()
     }).then(function(){
       document.getElementById("sync-status").textContent="☁️ 동기화됨";
