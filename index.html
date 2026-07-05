@@ -270,7 +270,8 @@ canvas{display:block;width:100%;height:170px;}
 <!-- 월별계획 시트 -->
 <div class="sheet" id="sh-plan">
   <div style="font-size:15px;font-weight:500;margin-bottom:6px;">월별계획</div>
-  <div style="font-size:11px;color:var(--txm);margin-bottom:10px;">이번달부터 2개월 뒤까지 노란 칸에 현장별 방문 계획 횟수를 입력하세요. 미배정 횟수는 자동 계산됩니다. (공사정지 현장은 제외됩니다)</div>
+  <div style="font-size:11px;color:var(--txm);margin-bottom:10px;">이번달부터 2개월 뒤까지 노란 칸에 현장별 방문 계획 횟수를 입력하세요. 미배정 횟수는 자동 계산됩니다. (공사정지·완료현장은 제외됩니다)</div>
+  <input type="text" id="plan-search" placeholder="🔍 공사명 검색..." oninput="filterPlanSites()" style="width:100%;max-width:320px;padding:7px 12px;margin-bottom:10px;border:1px solid var(--bd);border-radius:7px;font-size:13px;background:var(--bg);color:var(--tx);outline:none;">
   <div class="st-wrap plan-scroll" id="plan-scroll"><table class="st plan-tbl" id="plan-tbl"></table></div>
 </div>
 
@@ -1460,16 +1461,38 @@ function sortByContract(arr){
     return db.localeCompare(da);
   });
 }
+function sortByEndDate(arr){
+  return arr.slice().sort(function(a,b){
+    var ea=a.end||'9999-99-99';
+    var eb=b.end||'9999-99-99';
+    return ea.localeCompare(eb);
+  });
+}
 
 // ===== 월별계획 =====
+function isPlanEligible(s){
+  if(s.stopped)return false;
+  if(s.done>=s.total&&s.total>0&&!s.reverted&&isRptDone(s))return false; // 완료현장으로 넘어간 현장 제외
+  return true;
+}
 function getPlanMonths(){
   var arr=[];var d=new Date();var y=d.getFullYear(),m=d.getMonth();
   for(var i=0;i<3;i++){arr.push({y:y,m:m,key:ymKey(new Date(y,m,1))});m++;if(m>11){m=0;y++;}}
   return arr;
 }
+var planFilter='';
+function filterPlanSites(){
+  planFilter=document.getElementById('plan-search').value.trim();
+  renderPlanSheet();
+}
 function renderPlanSheet(){
   var months=getPlanMonths();
-  var list=sortByContract(sites.filter(function(s){return !s.stopped;}));
+  var searchEl=document.getElementById('plan-search');
+  if(searchEl)planFilter=searchEl.value.trim();
+  var list=sortByEndDate(sites.filter(isPlanEligible).filter(function(s){
+    if(!planFilter)return true;
+    return s.name.indexOf(planFilter)>=0||(s.company&&s.company.indexOf(planFilter)>=0);
+  }));
   var totals=months.map(function(){return 0;});
   var html='<tr><th style="min-width:160px;">공사명</th><th>업체명</th><th>발주기관</th><th>착공일</th><th>준공일</th><th>총지도<br>횟수</th><th>완료<br>횟수</th>';
   months.forEach(function(mo){html+='<th style="text-align:center;">'+(mo.m+1)+'월</th>';});
@@ -1485,7 +1508,9 @@ function renderPlanSheet(){
       var v=monthlyPlan[mo.key][s.id]||0;sum+=v;totals[mi]+=v;
       body+='<td style="text-align:center;"><input type="number" min="0" value="'+v+'" onchange="setPlan(\''+mo.key+'\','+s.id+',this.value)"></td>';
     });
-    var remain=s.total-s.done-sum;
+    var visitedInWindow=0;
+    months.forEach(function(mo){visitedInWindow+=getVisitedCountInMonth(s.id,mo.key);});
+    var remain=s.total-s.done+visitedInWindow-sum;
     body+='<td style="text-align:center;" class="'+(remain<0?'rem-warn':'rem-ok')+'">'+remain+'</td></tr>';
   });
   months.forEach(function(mo,mi){totalRowHtml+='<td style="text-align:center;color:var(--pr);">'+totals[mi]+'회</td>';});
@@ -1525,9 +1550,16 @@ function getRegCountInMonth(sid,monthKey){
   });
   return cnt;
 }
+function getVisitedCountInMonth(sid,monthKey){
+  var cnt=0;
+  Object.keys(sch).forEach(function(k){
+    if(k.indexOf(monthKey)===0)sch[k].forEach(function(e){if(e.siteId===sid&&e.visited)cnt++;});
+  });
+  return cnt;
+}
 function getPlanCandidates(monthKey){
   var arr=[];
-  var list=sortByContract(sites.filter(function(s){return !s.stopped;}));
+  var list=sortByEndDate(sites.filter(isPlanEligible));
   list.forEach(function(s){
     var planned=(monthlyPlan[monthKey]&&monthlyPlan[monthKey][s.id])||0;
     var reg=getRegCountInMonth(s.id,monthKey);
