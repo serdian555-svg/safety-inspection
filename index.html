@@ -1472,8 +1472,10 @@ function sortByEndDate(arr){
 // ===== 월별계획 =====
 function isPlanEligible(s){
   if(s.stopped)return false;
-  if(s.done>=s.total&&s.total>0&&!s.reverted&&isRptDone(s))return false; // 완료현장으로 넘어간 현장 제외
-  return true;
+  var completed=s.done>=s.total&&s.total>0&&!s.reverted&&isRptDone(s);
+  if(!completed)return true;
+  // 완료된 현장이라도 이번달에 방문기록이 있으면 이번달까지는 목록에 유지, 다음달부터 제외
+  return getVisitedCountInMonth(s.id,ymKey(new Date()))>0;
 }
 function getPlanMonths(){
   var arr=[];var d=new Date();var y=d.getFullYear(),m=d.getMonth();
