@@ -881,7 +881,7 @@ function renderAB(){
   if(!al.length){el.style.display='none';return;}
   el.style.display='flex';
   el.innerHTML='<span style="font-size:11px;font-weight:500;color:#92400e;margin-right:4px;">⚠️ 준공 임박</span>'+
-    al.map(function(a){return'<span class="alert-tag">'+tr(a.site.name,8)+' D-'+a.diff+'</span>';}).join('');
+    al.map(function(a){return'<span class="alert-tag" title="'+a.site.name.replace(/"/g,'&quot;')+'">'+tr(a.site.name,8)+' D-'+a.diff+'</span>';}).join('');
 }
 function getAlpSlot(){
   var h=new Date().getHours();
@@ -1396,7 +1396,7 @@ function hasRptPending(s){
   return done<total;
 }
 function getSorted(){
-  var active=function(s){return !s.stopped&&(s.done<s.total||s.reverted);};
+  var active=function(s){return !s.stopped&&(s.done<s.total||s.reverted||!isRptDone(s));};
   var early=sortByContract(sites.filter(function(s){return s.early&&active(s);}));
   var needReport=sortByContract(sites.filter(function(s){return !s.early&&active(s)&&hasRptPending(s);}));
   var normal=sortByContract(sites.filter(function(s){return !s.early&&active(s)&&!hasRptPending(s)&&!isRptDone(s);}));
@@ -1706,7 +1706,7 @@ function downloadTemplate(){
   XLSX.utils.book_append_sheet(wb,ws,'현장목록');
   XLSX.writeFile(wb,'현장등록_양식.xlsx');
 }
-function getCS(){return sites.filter(function(s){return s.done>=s.total&&s.total>0&&!s.reverted;});}
+function getCS(){return sites.filter(function(s){return s.done>=s.total&&s.total>0&&!s.reverted&&isRptDone(s);});}
 function getCY(){var yrs=[];getCS().forEach(function(s){var lv=getLV(s.id);var y=lv?lv.split('-')[0]:String(new Date().getFullYear());if(yrs.indexOf(y)<0)yrs.push(y);});return yrs.sort(function(a,b){return b-a;});}
 function renderComp(){
   var yrs=getCY();
