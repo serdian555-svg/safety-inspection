@@ -175,8 +175,9 @@ canvas{display:block;width:100%;height:170px;}
 .rem-ok{color:var(--su);font-weight:500;}
 .rem-warn{color:#dc2626;font-weight:500;}
 .plan-scroll{overflow-y:auto;}
+.plan-tbl{border-collapse:separate;border-spacing:0;}
 .plan-tbl thead tr:nth-child(1) th{position:sticky;top:0;z-index:6;background:var(--sf);}
-.plan-tbl thead tr.plan-total-row td{position:sticky;top:33px;z-index:5;background:var(--bg);border-bottom:2px solid var(--bd);padding:6px 6px;}
+.plan-tbl thead tr.plan-total-row td{position:sticky;z-index:5;background:var(--bg);border-bottom:2px solid var(--bd);padding:6px 6px;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -1491,6 +1492,16 @@ function renderPlanSheet(){
   totalRowHtml+='<td></td></tr>';
   document.getElementById('plan-tbl').innerHTML='<thead>'+html+totalRowHtml+'</thead><tbody>'+body+'</tbody>';
   sizePlanScroll();
+  fixPlanStickyTop();
+}
+function fixPlanStickyTop(){
+  var tbl=document.getElementById('plan-tbl');
+  if(!tbl)return;
+  var headRow=tbl.querySelector('thead tr:nth-child(1)');
+  var totalRow=tbl.querySelector('thead tr.plan-total-row');
+  if(!headRow||!totalRow)return;
+  var h=headRow.getBoundingClientRect().height;
+  Array.prototype.forEach.call(totalRow.children,function(td){td.style.top=h+'px';});
 }
 function sizePlanScroll(){
   var el=document.getElementById('plan-scroll');
@@ -1498,7 +1509,7 @@ function sizePlanScroll(){
   var top=el.getBoundingClientRect().top;
   el.style.height=Math.max(200,window.innerHeight-top-12)+'px';
 }
-window.addEventListener('resize',sizePlanScroll);
+window.addEventListener('resize',function(){sizePlanScroll();fixPlanStickyTop();});
 function setPlan(monthKey,sid,val){
   if(!monthlyPlan[monthKey])monthlyPlan[monthKey]={};
   var n=parseInt(val);if(isNaN(n)||n<0)n=0;
